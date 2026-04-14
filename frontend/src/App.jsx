@@ -6,18 +6,23 @@ import AdminLayout from './layouts/AdminLayout';
 import VendorLayout from './layouts/VendorLayout';
 
 // Admin pages
-import AdminLogin    from './pages/admin/Login';
-import Dashboard     from './pages/admin/Dashboard';
-import Orders        from './pages/admin/Orders';
-import OrderDetail   from './pages/admin/OrderDetail';
-import Products      from './pages/admin/Products';
-import Customers     from './pages/admin/Customers';
-import Vendors       from './pages/admin/Vendors';
-import Invoices      from './pages/admin/Invoices';
-import Reports       from './pages/admin/Reports';
-import Pricing       from './pages/admin/Pricing';
-import Users         from './pages/admin/Users';
-import VendorPayments from './pages/admin/VendorPayments';
+import AdminLogin      from './pages/admin/Login';
+import Dashboard       from './pages/admin/Dashboard';
+import Orders          from './pages/admin/Orders';
+import OrderDetail     from './pages/admin/OrderDetail';
+import CreateOrder     from './pages/admin/CreateOrder';
+import Products        from './pages/admin/Products';
+import Customers       from './pages/admin/Customers';
+import CustomerDetail  from './pages/admin/CustomerDetail';
+import Vendors         from './pages/admin/Vendors';
+import Invoices        from './pages/admin/Invoices';
+import Reports         from './pages/admin/Reports';
+import Pricing         from './pages/admin/Pricing';
+import Users           from './pages/admin/Users';
+import VendorPayments  from './pages/admin/VendorPayments';
+
+// Public pages
+import Track from './pages/public/Track';
 
 // Vendor pages
 import VendorLogin        from './pages/vendor/Login';
@@ -51,6 +56,9 @@ function AppRoutes() {
       {/* Root redirect */}
       <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />
 
+      {/* Public tracking — no auth */}
+      <Route path="/track" element={<Track />} />
+
       {/* Admin login (redirect if already logged in) */}
       <Route path="/admin/login" element={
         adminUser ? <Navigate to="/admin/dashboard" replace /> : <AdminLogin />
@@ -60,10 +68,12 @@ function AppRoutes() {
       <Route path="/admin" element={<AdminGuard><AdminLayout /></AdminGuard>}>
         <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard"       element={<Dashboard />} />
-        <Route path="orders"          element={<Orders />} />
+        <Route path="orders"            element={<Orders />} />
+        <Route path="orders/new"      element={<CreateOrder />} />
         <Route path="orders/:id"      element={<OrderDetail />} />
         <Route path="products"        element={<Products />} />
         <Route path="customers"       element={<Customers />} />
+        <Route path="customers/:id"   element={<CustomerDetail />} />
         <Route path="vendors"         element={<Vendors />} />
         <Route path="invoices"        element={<Invoices />} />
         <Route path="reports"         element={<Reports />} />

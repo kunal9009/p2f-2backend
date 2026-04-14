@@ -1,8 +1,12 @@
 require('dotenv').config();
+const validateEnv = require('./src/config/validateEnv');
+validateEnv(); // Exits immediately if JWT_SECRET or MONGODB_URI are missing
+
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
+const compression = require('compression');
 const path = require('path');
 const fs = require('fs');
 
@@ -43,6 +47,7 @@ if (!fs.existsSync(uploadDir)) {
 
 // ─── MIDDLEWARE ───
 app.use(helmet());
+app.use(compression()); // gzip all JSON responses
 app.use(cors({
   origin: process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : '*',
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -121,11 +126,31 @@ const PORT = process.env.PORT || 3000;
 
 connectDB()
   .then(() => {
-    app.listen(PORT, () => {
+    const server = app.listen(PORT, () => {
       console.log(`MahattaART backend running on port ${PORT}`);
       console.log(`  Admin API : http://localhost:${PORT}/api/admin`);
       console.log(`  Vendor API: http://localhost:${PORT}/api/vendor`);
     });
+
+    // ─── GRACEFUL SHUTDOWN ───
+    const shutdown = (signal) => {
+      console.log(`\n${signal} received — shutting down gracefully...`);
+      server.close(() => {
+        console.log('HTTP server closed');
+        require('mongoose').connection.close(false).then(() => {
+          console.log('MongoDB connection closed');
+          process.exit(0);
+        });
+      });
+      // Force exit if graceful shutdown takes too long
+      setTimeout(() => {
+        console.error('Graceful shutdown timed out — forcing exit');
+        process.exit(1);
+      }, 10000);
+    };
+
+    process.on('SIGTERM', () => shutdown('SIGTERM'));
+    process.on('SIGINT', () => shutdown('SIGINT'));
   })
   .catch((err) => {
     console.error('DB connection failed:', err.message);

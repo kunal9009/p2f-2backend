@@ -101,6 +101,18 @@ exports.remove = async (req, res) => {
   }
 };
 
+// PATCH /api/admin/products/:type/:id/reactivate
+exports.reactivate = async (req, res) => {
+  try {
+    const Model = getModel(req.params.type);
+    const item = await Model.findByIdAndUpdate(req.params.id, { isActive: true }, { new: true });
+    if (!item) return res.status(404).json({ success: false, message: 'Not found' });
+    res.json({ success: true, message: 'Reactivated successfully', data: item });
+  } catch (err) {
+    res.status(400).json({ success: false, message: err.message });
+  }
+};
+
 // POST /api/admin/products/:type/:id/images
 exports.uploadImages = async (req, res) => {
   try {

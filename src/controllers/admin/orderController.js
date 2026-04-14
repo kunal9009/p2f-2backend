@@ -17,6 +17,8 @@ exports.list = async (req, res) => {
       filter.$or = [
         { orderId: { $regex: req.query.search, $options: 'i' } },
         { customerName: { $regex: req.query.search, $options: 'i' } },
+        { customerPhone: { $regex: req.query.search, $options: 'i' } },
+        { customerEmail: { $regex: req.query.search, $options: 'i' } },
       ];
     }
 
@@ -51,6 +53,19 @@ exports.getById = async (req, res) => {
 
     if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
     res.json({ success: true, data: order });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// GET /api/admin/orders/:id/history — full status audit trail
+exports.getHistory = async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id)
+      .select('orderId status statusHistory')
+      .populate('statusHistory.changedBy', 'name email role');
+    if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+    res.json({ success: true, data: { orderId: order.orderId, currentStatus: order.status, history: order.statusHistory } });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

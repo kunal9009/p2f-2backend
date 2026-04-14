@@ -71,6 +71,21 @@ exports.changePassword = async (req, res) => {
   }
 };
 
+// POST /api/admin/auth/refresh — issue a fresh token for an already-authenticated user
+exports.refresh = async (req, res) => {
+  try {
+    // protect middleware already verified the current token and set req.user
+    const user = await User.findById(req.user.id);
+    if (!user || !user.isActive) {
+      return res.status(403).json({ success: false, message: 'Account not active' });
+    }
+    const token = signToken(user._id);
+    res.json({ success: true, token });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
 // POST /api/admin/auth/register  (admin creates users)
 exports.register = async (req, res) => {
   try {

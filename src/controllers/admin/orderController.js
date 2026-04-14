@@ -13,6 +13,16 @@ exports.list = async (req, res) => {
     if (req.query.source) filter.source = req.query.source;
     if (req.query.paymentStatus) filter.paymentStatus = req.query.paymentStatus;
     if (req.query.customerId) filter.customerId = req.query.customerId;
+    if (req.query.assignedVendorId) filter.assignedVendorId = req.query.assignedVendorId;
+    if (req.query.from || req.query.to) {
+      filter.createdAt = {};
+      if (req.query.from) filter.createdAt.$gte = new Date(req.query.from);
+      if (req.query.to) {
+        const to = new Date(req.query.to);
+        to.setHours(23, 59, 59, 999);
+        filter.createdAt.$lte = to;
+      }
+    }
     if (req.query.search) {
       filter.$or = [
         { orderId: { $regex: req.query.search, $options: 'i' } },

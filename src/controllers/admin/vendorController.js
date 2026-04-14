@@ -1,4 +1,5 @@
 const Vendor = require('../../models/Vendor');
+const User = require('../../models/User');
 const Order = require('../../models/Order');
 
 // GET /api/admin/vendors
@@ -45,11 +46,45 @@ exports.getById = async (req, res) => {
 };
 
 // POST /api/admin/vendors
+// If `email` + `password` are supplied a vendor User login account is created atomically.
 exports.create = async (req, res) => {
+  let vendor = null;
   try {
-    const vendor = await Vendor.create(req.body);
-    res.status(201).json({ success: true, data: vendor });
+    const { password, ...vendorBody } = req.body;
+
+    vendor = await Vendor.create(vendorBody);
+
+    let userRecord = null;
+    if (vendorBody.email && password) {
+      // Create the login account for this vendor
+      userRecord = await User.create({
+        name: vendorBody.contactPerson || vendorBody.name,
+        email: vendorBody.email,
+        password,
+        phone: vendorBody.phone,
+        role: 'vendor',
+        vendorId: vendor._id,
+      });
+
+      // Back-link the user to the vendor document
+      vendor.userId = userRecord._id;
+      await vendor.save();
+    }
+
+    res.status(201).json({
+      success: true,
+      data: {
+        vendor,
+        user: userRecord
+          ? { id: userRecord._id, name: userRecord.name, email: userRecord.email, role: userRecord.role }
+          : null,
+      },
+    });
   } catch (err) {
+    // Roll back vendor if user creation failed after vendor was saved
+    if (vendor && vendor._id && err.name !== 'ValidationError') {
+      await Vendor.findByIdAndDelete(vendor._id).catch(() => {});
+    }
     res.status(400).json({ success: false, message: err.message });
   }
 };

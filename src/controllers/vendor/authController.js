@@ -50,6 +50,20 @@ exports.getMe = async (req, res) => {
   }
 };
 
+// POST /api/vendor/auth/refresh — issue a fresh token for an authenticated vendor
+exports.refresh = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user || !user.isActive) {
+      return res.status(403).json({ success: false, message: 'Account not active' });
+    }
+    const token = signToken(user._id);
+    res.json({ success: true, token });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
 // PATCH /api/vendor/auth/change-password
 exports.changePassword = async (req, res) => {
   try {

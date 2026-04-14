@@ -23,12 +23,15 @@ const adminInvoiceRoutes = require('./src/routes/admin/invoiceRoutes');
 const adminUserRoutes = require('./src/routes/admin/userRoutes');
 const adminPricingRoutes = require('./src/routes/admin/pricingRoutes');
 const adminReportRoutes = require('./src/routes/admin/reportRoutes');
+const adminCatalogRoutes = require('./src/routes/admin/catalogRoutes');
+const adminVendorPaymentRoutes = require('./src/routes/admin/vendorPaymentRoutes');
 
 // ─── VENDOR (VIKAS) ROUTES ───
 const vendorAuthRoutes = require('./src/routes/vendor/authRoutes');
 const vendorOrderRoutes = require('./src/routes/vendor/orderRoutes');
 const vendorShipmentRoutes = require('./src/routes/vendor/shipmentRoutes');
 const vendorProductRoutes = require('./src/routes/vendor/productRoutes');
+const vendorPaymentRoutes = require('./src/routes/vendor/paymentRoutes');
 
 const app = express();
 
@@ -74,12 +77,15 @@ app.use('/api/admin/invoices', adminInvoiceRoutes);
 app.use('/api/admin/users', adminUserRoutes);
 app.use('/api/admin/pricing', adminPricingRoutes);
 app.use('/api/admin/reports', adminReportRoutes);
+app.use('/api/admin/catalog', adminCatalogRoutes);
+app.use('/api/admin/vendor-payments', adminVendorPaymentRoutes);
 
 // ─── VENDOR API (/api/vendor/*) ───
 app.use('/api/vendor/auth', vendorAuthRoutes);
 app.use('/api/vendor/orders', vendorOrderRoutes);
 app.use('/api/vendor/shipments', vendorShipmentRoutes);
 app.use('/api/vendor/products', vendorProductRoutes);
+app.use('/api/vendor/payments', vendorPaymentRoutes);
 
 // ─── 404 HANDLER ───
 app.use((req, res) => {

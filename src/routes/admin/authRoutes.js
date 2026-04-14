@@ -19,6 +19,7 @@ const registerRules = [
 
 router.post('/login', authLimiter, loginRules, validate, authController.login);
 router.get('/me', protect, authController.getMe);
+router.patch('/change-password', protect, authController.changePassword);
 router.post('/register', protect, adminOnly, registerRules, validate, authController.register);
 
 module.exports = router;

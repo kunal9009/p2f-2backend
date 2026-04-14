@@ -13,5 +13,6 @@ router.post('/:type', productController.create);
 router.put('/:type/:id', productController.update);
 router.delete('/:type/:id', productController.remove);
 router.post('/:type/:id/images', upload.array('images', 5), productController.uploadImages);
+router.delete('/:type/:id/images/:index', productController.removeImage);
 
 module.exports = router;

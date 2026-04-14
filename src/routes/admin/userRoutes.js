@@ -8,6 +8,7 @@ router.get('/', userController.list);
 router.get('/:id', userController.getById);
 router.put('/:id', userController.update);
 router.patch('/:id/reset-password', userController.resetPassword);
+router.patch('/:id/reactivate', userController.reactivate);
 router.delete('/:id', userController.remove);
 
 module.exports = router;

@@ -92,6 +92,19 @@ app.use((req, res) => {
   res.status(404).json({ success: false, message: `Route ${req.method} ${req.path} not found` });
 });
 
+// ─── MULTER ERROR HANDLER (must come before generic error handler) ───
+app.use((err, req, res, next) => {
+  if (err.name === 'MulterError') {
+    const messages = {
+      LIMIT_FILE_SIZE: `File too large. Maximum size is ${(parseInt(process.env.MAX_FILE_SIZE, 10) || 10485760) / 1048576}MB`,
+      LIMIT_FILE_COUNT: 'Too many files uploaded at once',
+      LIMIT_UNEXPECTED_FILE: `Unexpected field: ${err.field}`,
+    };
+    return res.status(400).json({ success: false, message: messages[err.code] || err.message });
+  }
+  next(err);
+});
+
 // ─── GLOBAL ERROR HANDLER ───
 app.use((err, req, res, next) => {
   console.error(err.stack);

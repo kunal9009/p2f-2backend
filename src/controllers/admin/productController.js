@@ -117,3 +117,25 @@ exports.uploadImages = async (req, res) => {
     res.status(400).json({ success: false, message: err.message });
   }
 };
+
+// DELETE /api/admin/products/:type/:id/images/:index
+// Remove image at a specific position (0-based index)
+exports.removeImage = async (req, res) => {
+  try {
+    const Model = getModel(req.params.type);
+    const item = await Model.findById(req.params.id);
+    if (!item) return res.status(404).json({ success: false, message: 'Not found' });
+
+    const index = parseInt(req.params.index, 10);
+    if (isNaN(index) || index < 0 || index >= (item.images || []).length) {
+      return res.status(400).json({ success: false, message: `Invalid image index: ${req.params.index}` });
+    }
+
+    item.images.splice(index, 1);
+    await item.save();
+
+    res.json({ success: true, message: 'Image removed', data: { images: item.images } });
+  } catch (err) {
+    res.status(400).json({ success: false, message: err.message });
+  }
+};

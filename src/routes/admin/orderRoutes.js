@@ -15,6 +15,7 @@ router.put('/:id', orderController.update);
 router.patch('/:id/status', orderController.updateStatus);
 
 // Assignment & payment
+router.patch('/bulk-assign-vendor', orderController.bulkAssignVendor);
 router.patch('/:id/assign-vendor', orderController.assignVendor);
 router.patch('/:id/payment', orderController.updatePayment);
 

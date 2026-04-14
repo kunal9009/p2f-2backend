@@ -146,6 +146,33 @@ exports.assignVendor = async (req, res) => {
   }
 };
 
+// PATCH /api/admin/orders/bulk-assign-vendor
+// Body: { orderIds: [...], vendorId: '...' }
+exports.bulkAssignVendor = async (req, res) => {
+  try {
+    const { orderIds, vendorId } = req.body;
+    if (!Array.isArray(orderIds) || orderIds.length === 0) {
+      return res.status(400).json({ success: false, message: '`orderIds` must be a non-empty array' });
+    }
+    if (!vendorId) {
+      return res.status(400).json({ success: false, message: '`vendorId` is required' });
+    }
+
+    const result = await Order.updateMany(
+      { _id: { $in: orderIds } },
+      { assignedVendorId: vendorId }
+    );
+
+    res.json({
+      success: true,
+      message: `${result.modifiedCount} order(s) assigned to vendor`,
+      data: { matched: result.matchedCount, modified: result.modifiedCount },
+    });
+  } catch (err) {
+    res.status(400).json({ success: false, message: err.message });
+  }
+};
+
 // PATCH /api/admin/orders/:id/payment
 exports.updatePayment = async (req, res) => {
   try {

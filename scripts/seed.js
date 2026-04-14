@@ -1,0 +1,72 @@
+/**
+ * Seed script — creates the first admin user.
+ * Usage:
+ *   node scripts/seed.js
+ *   ADMIN_EMAIL=you@example.com ADMIN_PASS=secret node scripts/seed.js
+ */
+require('dotenv').config();
+const mongoose = require('mongoose');
+const User = require('../src/models/User');
+const Vendor = require('../src/models/Vendor');
+
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@mahattaart.com';
+const ADMIN_PASS  = process.env.ADMIN_PASS  || 'Admin@1234';
+const ADMIN_NAME  = process.env.ADMIN_NAME  || 'Admin';
+
+// Vikas vendor seed data
+const VIKAS_VENDOR = {
+  name: 'Vikas Productions',
+  contactPerson: 'Vikas',
+  email: 'vikas@mahattaart.com',
+  supplyCategories: ['Paper', 'Canvas', 'Frame', 'Glass', 'Mount', 'Moulding'],
+  paymentTerms: 'Net 30',
+  isActive: true,
+};
+
+const VIKAS_USER = {
+  name: 'Vikas',
+  email: 'vikas@mahattaart.com',
+  password: process.env.VIKAS_PASS || 'Vikas@1234',
+  role: 'vendor',
+};
+
+async function seed() {
+  await mongoose.connect(process.env.MONGODB_URI);
+  console.log('Connected to MongoDB');
+
+  // ── Admin user ──
+  const existingAdmin = await User.findOne({ email: ADMIN_EMAIL });
+  if (existingAdmin) {
+    console.log(`Admin already exists: ${ADMIN_EMAIL}`);
+  } else {
+    await User.create({ name: ADMIN_NAME, email: ADMIN_EMAIL, password: ADMIN_PASS, role: 'admin' });
+    console.log(`Admin created: ${ADMIN_EMAIL} / ${ADMIN_PASS}`);
+  }
+
+  // ── Vikas vendor profile + user ──
+  let vikasVendor = await Vendor.findOne({ email: VIKAS_VENDOR.email });
+  if (!vikasVendor) {
+    vikasVendor = await Vendor.create(VIKAS_VENDOR);
+    console.log(`Vendor created: ${vikasVendor.name} (${vikasVendor._id})`);
+  } else {
+    console.log(`Vendor already exists: ${vikasVendor.name}`);
+  }
+
+  const existingVikas = await User.findOne({ email: VIKAS_USER.email });
+  if (existingVikas) {
+    console.log(`Vikas user already exists: ${VIKAS_USER.email}`);
+  } else {
+    const vikasUser = await User.create({ ...VIKAS_USER, vendorId: vikasVendor._id });
+    vikasVendor.userId = vikasUser._id;
+    await vikasVendor.save();
+    console.log(`Vikas user created: ${VIKAS_USER.email} / ${VIKAS_USER.password}`);
+  }
+
+  await mongoose.disconnect();
+  console.log('Seed complete.');
+}
+
+seed().catch((err) => {
+  console.error('Seed failed:', err.message);
+  process.exit(1);
+});

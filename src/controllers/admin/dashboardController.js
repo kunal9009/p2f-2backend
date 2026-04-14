@@ -1,0 +1,71 @@
+const Order = require('../../models/Order');
+const Customer = require('../../models/Customer');
+const Vendor = require('../../models/Vendor');
+const { ORDER_STATUS } = require('../../config/constants');
+
+// GET /api/admin/dashboard/stats
+exports.getStats = async (req, res) => {
+  try {
+    const [
+      totalOrders,
+      pendingOrders,
+      completedOrders,
+      cancelledOrders,
+      totalCustomers,
+      totalVendors,
+      revenueAgg,
+      statusCounts,
+    ] = await Promise.all([
+      Order.countDocuments(),
+      Order.countDocuments({ status: { $nin: [ORDER_STATUS.ORDER_COMPLETED, ORDER_STATUS.CANCELLED, ORDER_STATUS.CANCEL_BY_PRODUCTION] } }),
+      Order.countDocuments({ status: ORDER_STATUS.ORDER_COMPLETED }),
+      Order.countDocuments({ status: { $in: [ORDER_STATUS.CANCELLED, ORDER_STATUS.CANCEL_BY_PRODUCTION] } }),
+      Customer.countDocuments({ isActive: true }),
+      Vendor.countDocuments({ isActive: true }),
+      Order.aggregate([
+        { $match: { status: { $ne: ORDER_STATUS.CANCELLED } } },
+        { $group: { _id: null, totalRevenue: { $sum: '$totalAmount' }, totalCost: { $sum: '$totalProductionCost' } } },
+      ]),
+      Order.aggregate([
+        { $group: { _id: '$status', count: { $sum: 1 } } },
+      ]),
+    ]);
+
+    const revenue = revenueAgg[0] || { totalRevenue: 0, totalCost: 0 };
+    const statusMap = {};
+    statusCounts.forEach((s) => { statusMap[s._id] = s.count; });
+
+    res.json({
+      success: true,
+      data: {
+        totalOrders,
+        pendingOrders,
+        completedOrders,
+        cancelledOrders,
+        totalCustomers,
+        totalVendors,
+        totalRevenue: revenue.totalRevenue,
+        totalProductionCost: revenue.totalCost,
+        profit: revenue.totalRevenue - revenue.totalCost,
+        ordersByStatus: statusMap,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// GET /api/admin/dashboard/recent-orders
+exports.recentOrders = async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit, 10) || 10;
+    const orders = await Order.find()
+      .populate('customerId', 'name')
+      .populate('assignedVendorId', 'name')
+      .sort({ createdAt: -1 })
+      .limit(limit);
+    res.json({ success: true, data: orders });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};

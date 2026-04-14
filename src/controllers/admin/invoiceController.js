@@ -1,6 +1,6 @@
 const Invoice = require('../../models/Invoice');
 const Order = require('../../models/Order');
-const { generateInvoiceNumber, calculateGST } = require('../../utils/helpers');
+const { generateInvoiceNumberAtomic, calculateGST } = require('../../utils/helpers');
 
 // GET /api/admin/invoices
 exports.list = async (req, res) => {
@@ -94,9 +94,7 @@ exports.generate = async (req, res) => {
     const totalIgst = invoiceItems.reduce((sum, item) => sum + item.igstAmount, 0);
     const grandTotal = subtotal + totalCgst + totalSgst + totalIgst + (order.shippingCharge || 0) - (order.discount || 0);
 
-    // Generate invoice number
-    const invoiceCount = await Invoice.countDocuments();
-    const invoiceNumber = generateInvoiceNumber(invoiceCount + 1);
+    const invoiceNumber = await generateInvoiceNumberAtomic();
 
     const customer = order.customerId;
 

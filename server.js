@@ -7,6 +7,7 @@ const path = require('path');
 const fs = require('fs');
 
 const connectDB = require('./src/config/db');
+const { apiLimiter } = require('./src/middleware/rateLimiter');
 
 // ─── ADMIN ROUTES ───
 const adminAuthRoutes = require('./src/routes/admin/authRoutes');
@@ -16,6 +17,8 @@ const adminOrderRoutes = require('./src/routes/admin/orderRoutes');
 const adminCustomerRoutes = require('./src/routes/admin/customerRoutes');
 const adminVendorRoutes = require('./src/routes/admin/vendorRoutes');
 const adminInvoiceRoutes = require('./src/routes/admin/invoiceRoutes');
+const adminUserRoutes = require('./src/routes/admin/userRoutes');
+const adminPricingRoutes = require('./src/routes/admin/pricingRoutes');
 
 // ─── VENDOR (VIKAS) ROUTES ───
 const vendorAuthRoutes = require('./src/routes/vendor/authRoutes');
@@ -42,6 +45,9 @@ app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// General rate limit on all /api routes
+app.use('/api', apiLimiter);
+
 // Serve uploaded files
 app.use('/uploads', express.static(path.join(__dirname, uploadDir)));
 
@@ -58,6 +64,8 @@ app.use('/api/admin/orders', adminOrderRoutes);
 app.use('/api/admin/customers', adminCustomerRoutes);
 app.use('/api/admin/vendors', adminVendorRoutes);
 app.use('/api/admin/invoices', adminInvoiceRoutes);
+app.use('/api/admin/users', adminUserRoutes);
+app.use('/api/admin/pricing', adminPricingRoutes);
 
 // ─── VENDOR API (/api/vendor/*) ───
 app.use('/api/vendor/auth', vendorAuthRoutes);

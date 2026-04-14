@@ -185,3 +185,26 @@ exports.getStats = async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 };
+
+// POST /api/vendor/orders/:id/items/:itemId/design
+exports.uploadDesignImage = async (req, res) => {
+  try {
+    const order = await Order.findOne({
+      _id: req.params.id,
+      assignedVendorId: req.user.vendorId,
+    });
+    if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+
+    const item = order.items.id(req.params.itemId);
+    if (!item) return res.status(404).json({ success: false, message: 'Order item not found' });
+
+    if (!req.file) return res.status(400).json({ success: false, message: 'No file uploaded' });
+
+    item.designImage = req.file.path;
+    await order.save();
+
+    res.json({ success: true, data: { itemId: item._id, designImage: item.designImage } });
+  } catch (err) {
+    res.status(400).json({ success: false, message: err.message });
+  }
+};

@@ -1,4 +1,5 @@
 const Customer = require('../../models/Customer');
+const { generateCustomerId } = require('../../utils/helpers');
 
 // GET /api/admin/customers
 exports.list = async (req, res) => {
@@ -48,7 +49,9 @@ exports.getById = async (req, res) => {
 // POST /api/admin/customers
 exports.create = async (req, res) => {
   try {
-    const customer = await Customer.create(req.body);
+    // Auto-generate MA-prefixed customerId if not provided
+    const customerId = req.body.customerId || await generateCustomerId();
+    const customer = await Customer.create({ ...req.body, customerId });
     res.status(201).json({ success: true, data: customer });
   } catch (err) {
     res.status(400).json({ success: false, message: err.message });

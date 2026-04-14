@@ -1,5 +1,5 @@
 const Order = require('../../models/Order');
-const { isValidTransition, generateOrderId } = require('../../utils/helpers');
+const { isValidTransition, generateOrderIdAtomic } = require('../../utils/helpers');
 
 // GET /api/admin/orders
 exports.list = async (req, res) => {
@@ -59,11 +59,7 @@ exports.getById = async (req, res) => {
 // POST /api/admin/orders
 exports.create = async (req, res) => {
   try {
-    // Generate next order ID
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-    const todayCount = await Order.countDocuments({ createdAt: { $gte: todayStart } });
-    const orderId = generateOrderId(todayCount + 1);
+    const orderId = await generateOrderIdAtomic();
 
     const order = await Order.create({
       ...req.body,
@@ -160,6 +156,54 @@ exports.updatePayment = async (req, res) => {
       { new: true }
     );
     if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+    res.json({ success: true, data: order });
+  } catch (err) {
+    res.status(400).json({ success: false, message: err.message });
+  }
+};
+
+// POST /api/admin/orders/:id/items/:itemId/design
+// Upload the print-ready design image for a specific order line item
+exports.uploadDesignImage = async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id);
+    if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+
+    const item = order.items.id(req.params.itemId);
+    if (!item) return res.status(404).json({ success: false, message: 'Order item not found' });
+
+    if (!req.file) return res.status(400).json({ success: false, message: 'No file uploaded' });
+
+    item.designImage = req.file.path;
+    await order.save();
+
+    res.json({ success: true, data: { itemId: item._id, designImage: item.designImage } });
+  } catch (err) {
+    res.status(400).json({ success: false, message: err.message });
+  }
+};
+
+// PATCH /api/admin/orders/:id/address
+// Update shipping address after order is placed (before dispatch)
+exports.updateAddress = async (req, res) => {
+  try {
+    const { shippingAddress, billingAddress } = req.body;
+    const order = await Order.findById(req.params.id);
+    if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+
+    // Prevent address change after shipping
+    const lockedStatuses = ['Ready To Ship', 'Order Shipped', 'Order Completed'];
+    if (lockedStatuses.includes(order.status)) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot change address when order is '${order.status}'`,
+      });
+    }
+
+    if (shippingAddress) order.shippingAddress = shippingAddress;
+    if (billingAddress) order.billingAddress = billingAddress;
+    await order.save();
+
     res.json({ success: true, data: order });
   } catch (err) {
     res.status(400).json({ success: false, message: err.message });

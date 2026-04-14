@@ -1,4 +1,31 @@
 const { STATUS_TRANSITIONS } = require('../config/constants');
+const Counter = require('../models/Counter');
+
+/**
+ * Generate MA-prefixed customer ID: MA0028409
+ * Uses atomic DB counter to prevent duplicates under concurrent requests.
+ */
+const generateCustomerId = async () => {
+  const seq = await Counter.nextSeq('customer');
+  return `MA${String(seq).padStart(7, '0')}`;
+};
+
+/**
+ * Generate atomic sequential order ID: ORD-YYYYMMDD-NNN
+ */
+const generateOrderIdAtomic = async () => {
+  const seq = await Counter.nextSeq('order');
+  const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  return `ORD-${dateStr}-${String(seq).padStart(4, '0')}`;
+};
+
+/**
+ * Generate atomic invoice number: INV-YYYY-NNNN
+ */
+const generateInvoiceNumberAtomic = async () => {
+  const seq = await Counter.nextSeq('invoice');
+  return `INV-${new Date().getFullYear()}-${String(seq).padStart(4, '0')}`;
+};
 
 /**
  * Check if a status transition is valid
@@ -51,8 +78,11 @@ const paginate = (query, page = 1, limit = 20) => {
 
 module.exports = {
   isValidTransition,
+  generateCustomerId,
   generateOrderId,
+  generateOrderIdAtomic,
   generateInvoiceNumber,
+  generateInvoiceNumberAtomic,
   calculateGST,
   paginate,
 };

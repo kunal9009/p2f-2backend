@@ -209,3 +209,100 @@ exports.updateAddress = async (req, res) => {
     res.status(400).json({ success: false, message: err.message });
   }
 };
+
+// ─── ORDER ITEM MANAGEMENT ───
+// Items can only be modified before production starts (before Under Printing)
+
+const PRE_PRODUCTION_STATUSES = ['Order Received', 'Confirmed'];
+
+const assertPreProduction = (order) => {
+  if (!PRE_PRODUCTION_STATUSES.includes(order.status)) {
+    throw Object.assign(new Error(`Cannot modify items when order is '${order.status}'`), { statusCode: 400 });
+  }
+};
+
+const recalcOrderTotals = (order) => {
+  order.subtotal = order.items.reduce((sum, item) => sum + (item.totalPrice || 0), 0);
+  order.totalAmount = order.subtotal + (order.shippingCharge || 0) + (order.taxAmount || 0) - (order.discount || 0);
+};
+
+// POST /api/admin/orders/:id/items
+exports.addItem = async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id);
+    if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+    assertPreProduction(order);
+
+    const item = req.body;
+    if (item.unitPrice && item.quantity) {
+      item.totalPrice = item.unitPrice * item.quantity;
+    }
+    order.items.push(item);
+    recalcOrderTotals(order);
+    await order.save();
+
+    res.status(201).json({ success: true, data: order });
+  } catch (err) {
+    res.status(err.statusCode || 400).json({ success: false, message: err.message });
+  }
+};
+
+// PUT /api/admin/orders/:id/items/:itemId
+exports.updateItem = async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id);
+    if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+    assertPreProduction(order);
+
+    const item = order.items.id(req.params.itemId);
+    if (!item) return res.status(404).json({ success: false, message: 'Item not found' });
+
+    Object.assign(item, req.body);
+    // Recalc line total
+    if (item.unitPrice && item.quantity) {
+      item.totalPrice = item.unitPrice * item.quantity;
+    }
+    recalcOrderTotals(order);
+    await order.save();
+
+    res.json({ success: true, data: order });
+  } catch (err) {
+    res.status(err.statusCode || 400).json({ success: false, message: err.message });
+  }
+};
+
+// DELETE /api/admin/orders/:id/items/:itemId
+exports.removeItem = async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id);
+    if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+    assertPreProduction(order);
+
+    const item = order.items.id(req.params.itemId);
+    if (!item) return res.status(404).json({ success: false, message: 'Item not found' });
+
+    item.deleteOne();
+    recalcOrderTotals(order);
+    await order.save();
+
+    res.json({ success: true, data: order });
+  } catch (err) {
+    res.status(err.statusCode || 400).json({ success: false, message: err.message });
+  }
+};
+
+// PATCH /api/admin/orders/:id/notes
+exports.updateNotes = async (req, res) => {
+  try {
+    const { adminNotes } = req.body;
+    const order = await Order.findByIdAndUpdate(
+      req.params.id,
+      { adminNotes },
+      { new: true }
+    );
+    if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+    res.json({ success: true, data: order });
+  } catch (err) {
+    res.status(400).json({ success: false, message: err.message });
+  }
+};

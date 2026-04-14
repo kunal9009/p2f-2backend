@@ -9,6 +9,9 @@ const fs = require('fs');
 const connectDB = require('./src/config/db');
 const { apiLimiter } = require('./src/middleware/rateLimiter');
 
+// ─── PUBLIC ROUTES ───
+const publicTrackingRoutes = require('./src/routes/public/trackingRoutes');
+
 // ─── ADMIN ROUTES ───
 const adminAuthRoutes = require('./src/routes/admin/authRoutes');
 const adminDashboardRoutes = require('./src/routes/admin/dashboardRoutes');
@@ -19,6 +22,7 @@ const adminVendorRoutes = require('./src/routes/admin/vendorRoutes');
 const adminInvoiceRoutes = require('./src/routes/admin/invoiceRoutes');
 const adminUserRoutes = require('./src/routes/admin/userRoutes');
 const adminPricingRoutes = require('./src/routes/admin/pricingRoutes');
+const adminReportRoutes = require('./src/routes/admin/reportRoutes');
 
 // ─── VENDOR (VIKAS) ROUTES ───
 const vendorAuthRoutes = require('./src/routes/vendor/authRoutes');
@@ -56,6 +60,9 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// ─── PUBLIC API (/api/public/*) — no auth required ───
+app.use('/api/public', publicTrackingRoutes);
+
 // ─── ADMIN API (/api/admin/*) ───
 app.use('/api/admin/auth', adminAuthRoutes);
 app.use('/api/admin/dashboard', adminDashboardRoutes);
@@ -66,6 +73,7 @@ app.use('/api/admin/vendors', adminVendorRoutes);
 app.use('/api/admin/invoices', adminInvoiceRoutes);
 app.use('/api/admin/users', adminUserRoutes);
 app.use('/api/admin/pricing', adminPricingRoutes);
+app.use('/api/admin/reports', adminReportRoutes);
 
 // ─── VENDOR API (/api/vendor/*) ───
 app.use('/api/vendor/auth', vendorAuthRoutes);

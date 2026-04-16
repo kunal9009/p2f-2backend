@@ -8,6 +8,7 @@ const fs = require('fs');
 
 const connectDB = require('./src/config/db');
 const { apiLimiter } = require('./src/middleware/rateLimiter');
+const { startScheduler } = require('./src/utils/taskScheduler');
 
 // ─── PUBLIC ROUTES ───
 const publicTrackingRoutes = require('./src/routes/public/trackingRoutes');
@@ -23,6 +24,7 @@ const adminInvoiceRoutes = require('./src/routes/admin/invoiceRoutes');
 const adminUserRoutes = require('./src/routes/admin/userRoutes');
 const adminPricingRoutes = require('./src/routes/admin/pricingRoutes');
 const adminReportRoutes = require('./src/routes/admin/reportRoutes');
+const adminTaskRoutes  = require('./src/routes/admin/taskRoutes');
 
 // ─── VENDOR (VIKAS) ROUTES ───
 const vendorAuthRoutes = require('./src/routes/vendor/authRoutes');
@@ -74,6 +76,7 @@ app.use('/api/admin/invoices', adminInvoiceRoutes);
 app.use('/api/admin/users', adminUserRoutes);
 app.use('/api/admin/pricing', adminPricingRoutes);
 app.use('/api/admin/reports', adminReportRoutes);
+app.use('/api/admin/tasks',  adminTaskRoutes);
 
 // ─── VENDOR API (/api/vendor/*) ───
 app.use('/api/vendor/auth', vendorAuthRoutes);
@@ -102,10 +105,12 @@ const PORT = process.env.PORT || 3000;
 
 connectDB()
   .then(() => {
+    startScheduler();
     app.listen(PORT, () => {
       console.log(`MahattaART backend running on port ${PORT}`);
       console.log(`  Admin API : http://localhost:${PORT}/api/admin`);
       console.log(`  Vendor API: http://localhost:${PORT}/api/vendor`);
+      console.log(`  Task API  : http://localhost:${PORT}/api/admin/tasks`);
     });
   })
   .catch((err) => {

@@ -10,6 +10,7 @@ router.get('/dashboard', taskController.dashboard);     // GET  /api/admin/tasks
 router.get('/kanban',    taskController.kanban);        // GET  /api/admin/tasks/kanban
 router.get('/my',        taskController.myTasks);       // GET  /api/admin/tasks/my
 router.get('/export',    taskController.exportCsv);     // GET  /api/admin/tasks/export
+router.get('/activity',  taskController.activity);      // GET  /api/admin/tasks/activity
 
 // ─── TASK CRUD ───
 router.get('/',    taskController.list);    // GET    /api/admin/tasks

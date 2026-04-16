@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tasks — MahattaART</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="sidebar"></div>
+
+  <main class="main-content">
+    <div class="page-header">
+      <div>
+        <h2>All Tasks</h2>
+        <p class="text-muted" id="taskCount">Loading…</p>
+      </div>
+      <div class="header-actions">
+        <a href="tasks-export" class="btn btn-secondary" id="exportBtn">⬇ Export CSV</a>
+        <button class="btn btn-primary" onclick="openTaskModal()">+ New Task</button>
+      </div>
+    </div>
+
+    <!-- FILTERS -->
+    <div class="filters-bar card">
+      <input type="text"   id="searchQ"     class="input-sm" placeholder="Search title / ID…" />
+      <select id="filterStatus"   class="input-sm">
+        <option value="">All Statuses</option>
+        <option value="todo">To Do</option>
+        <option value="in_progress">In Progress</option>
+        <option value="testing">Testing</option>
+        <option value="completed">Completed</option>
+        <option value="on_hold">On Hold</option>
+        <option value="cancelled">Cancelled</option>
+      </select>
+      <select id="filterPriority" class="input-sm">
+        <option value="">All Priorities</option>
+        <option value="critical">Critical</option>
+        <option value="high">High</option>
+        <option value="medium">Medium</option>
+        <option value="low">Low</option>
+      </select>
+      <input type="date" id="filterDueBefore" class="input-sm" title="Due before" />
+      <label class="checkbox-label">
+        <input type="checkbox" id="filterOverdue" /> Overdue only
+      </label>
+      <button class="btn btn-secondary btn-sm" onclick="resetFilters()">Clear</button>
+    </div>
+
+    <!-- TASK TABLE -->
+    <div class="card table-card">
+      <table class="data-table" id="taskTable">
+        <thead>
+          <tr>
+            <th>Task ID</th>
+            <th>Title</th>
+            <th>Project</th>
+            <th>Status</th>
+            <th>Priority</th>
+            <th>Assigned To</th>
+            <th>Due Date</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="taskTbody">
+          <tr><td colspan="8" style="text-align:center;padding:32px;color:#999">Loading…</td></tr>
+        </tbody>
+      </table>
+      <div class="pagination" id="pagination"></div>
+    </div>
+  </main>
+
+  <!-- TASK MODAL -->
+  <div id="modalOverlay" class="modal-overlay"></div>
+  <div id="taskModal" class="modal modal-lg">
+    <div class="modal-header">
+      <h3 id="modalTitle">New Task</h3>
+      <button class="btn-icon" onclick="closeTaskModal()">✕</button>
+    </div>
+    <div id="modalBody"></div>
+  </div>
+
+  <!-- DETAIL DRAWER -->
+  <div id="drawerOverlay" class="drawer-overlay" onclick="closeDrawer()"></div>
+  <div id="taskDrawer" class="task-drawer">
+    <div class="drawer-header">
+      <span id="drawerTaskId" class="badge-taskid"></span>
+      <button class="btn-icon" onclick="closeDrawer()">✕</button>
+    </div>
+    <div id="drawerBody" class="drawer-body"></div>
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    requireAuth();
+    renderSidebar('tasks');
+
+    const PRIO_BADGE = { critical:'badge-critical', high:'badge-high', medium:'badge-medium', low:'badge-low' };
+    let page = 1, totalPages = 1;
+    let debounceTimer;
+
+    // export link
+    document.getElementById('exportBtn').href = '/api/admin/tasks/export?token=' + localStorage.getItem('tm_token');
+
+    function getFilters() {
+      return {
+        search:    document.getElementById('searchQ').value.trim(),
+        status:    document.getElementById('filterStatus').value,
+        priority:  document.getElementById('filterPriority').value,
+        dueBefore: document.getElementById('filterDueBefore').value,
+        overdue:   document.getElementById('filterOverdue').checked ? 'true' : '',
+      };
+    }
+
+    function buildQS(extra = {}) {
+      const f = { ...getFilters(), page, limit: 20, ...extra };
+      return Object.entries(f).filter(([,v]) => v).map(([k,v]) => `${k}=${encodeURIComponent(v)}`).join('&');
+    }
+
+    async function loadTasks() {
+      document.getElementById('taskTbody').innerHTML =
+        '<tr><td colspan="8" style="text-align:center;padding:32px;color:#999">Loading…</td></tr>';
+
+      const data = await api('/api/admin/tasks?' + buildQS());
+      if (!data.success) return;
+
+      totalPages = data.pagination.pages || 1;
+      document.getElementById('taskCount').textContent =
+        `${data.pagination.total} task${data.pagination.total !== 1 ? 's' : ''}`;
+
+      const tbody = document.getElementById('taskTbody');
+      if (!data.data.length) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:32px;color:#999">No tasks found.</td></tr>';
+        renderPagination();
+        return;
+      }
+
+      tbody.innerHTML = data.data.map(t => {
+        const due = t.dueDate ? new Date(t.dueDate) : null;
+        const overdue = due && due < new Date() && !['completed','cancelled'].includes(t.status);
+        const dueFmt  = due ? due.toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' }) : '—';
+        const assignees = (t.assignedTo || []).map(a => a.name).join(', ') || '—';
+
+        // Inline status dropdown — change without opening the drawer
+        const statusOptions = ['todo','in_progress','testing','completed','on_hold','cancelled']
+          .map(s => `<option value="${s}" ${t.status===s?'selected':''}>${s.replace('_',' ')}</option>`)
+          .join('');
+
+        return `<tr id="row-${t._id}">
+          <td><span class="badge-taskid">${t.taskId}</span></td>
+          <td class="task-title-cell">
+            <span class="task-link" onclick="openDrawer('${t._id}')">${t.title}</span>
+            ${t.tags && t.tags.length ? `<div class="card-tags">${t.tags.map(g=>`<span class="tag">${g}</span>`).join('')}</div>` : ''}
+          </td>
+          <td>${t.project || '—'}</td>
+          <td>
+            <select class="inline-status-select badge badge-${t.status}"
+                    onchange="inlineStatusChange('${t._id}', this)">
+              ${statusOptions}
+            </select>
+          </td>
+          <td><span class="badge ${PRIO_BADGE[t.priority] || ''}">${t.priority}</span></td>
+          <td>${assignees}</td>
+          <td class="${overdue ? 'text-danger' : ''}">${dueFmt}</td>
+          <td>
+            <div class="action-btns">
+              <button class="btn-icon-sm" title="Edit" onclick="openTaskModal('${t._id}')">✏️</button>
+              <button class="btn-icon-sm" title="Delete" onclick="deleteTask('${t._id}','${t.taskId}')">🗑️</button>
+            </div>
+          </td>
+        </tr>`;
+      }).join('');
+
+      renderPagination();
+    }
+
+    function renderPagination() {
+      const el = document.getElementById('pagination');
+      if (totalPages <= 1) { el.innerHTML = ''; return; }
+      el.innerHTML = `
+        <button class="btn btn-secondary btn-sm" ${page<=1?'disabled':''} onclick="goPage(${page-1})">← Prev</button>
+        <span>Page ${page} of ${totalPages}</span>
+        <button class="btn btn-secondary btn-sm" ${page>=totalPages?'disabled':''} onclick="goPage(${page+1})">Next →</button>`;
+    }
+
+    function goPage(p) { page = p; loadTasks(); }
+
+    function resetFilters() {
+      document.getElementById('searchQ').value = '';
+      document.getElementById('filterStatus').value = '';
+      document.getElementById('filterPriority').value = '';
+      document.getElementById('filterDueBefore').value = '';
+      document.getElementById('filterOverdue').checked = false;
+      page = 1; loadTasks();
+    }
+
+    // Debounced search
+    document.getElementById('searchQ').addEventListener('input', () => {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => { page = 1; loadTasks(); }, 400);
+    });
+    ['filterStatus','filterPriority','filterDueBefore','filterOverdue'].forEach(id => {
+      document.getElementById(id).addEventListener('change', () => { page = 1; loadTasks(); });
+    });
+
+    /* ── Inline status change ── */
+    async function inlineStatusChange(id, selectEl) {
+      const status = selectEl.value;
+      // Optimistically update badge class
+      selectEl.className = `inline-status-select badge badge-${status}`;
+      const res = await api('/api/admin/tasks/' + id + '/status', 'PATCH', { status });
+      if (!res.success) {
+        alert(res.message || 'Status update failed');
+        loadTasks(); // revert
+      }
+    }
+
+    /* ── Delete ── */
+    async function deleteTask(id, taskId) {
+      if (!confirm(`Delete task ${taskId}? This cannot be undone.`)) return;
+      const res = await api('/api/admin/tasks/' + id, 'DELETE');
+      if (res.success) loadTasks();
+      else alert(res.message || 'Delete failed');
+    }
+
+    /* ── Drawer ── */
+    async function openDrawer(id) {
+      const data = await api('/api/admin/tasks/' + id);
+      if (!data.success) return;
+      const t = data.data;
+
+      document.getElementById('drawerTaskId').textContent = t.taskId;
+      document.getElementById('drawerOverlay').classList.add('open');
+      document.getElementById('taskDrawer').classList.add('open');
+
+      const due = t.dueDate ? new Date(t.dueDate).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}) : '—';
+      const assigneeNames = (t.assignedTo || []).map(a => a.name).join(', ') || '—';
+
+      document.getElementById('drawerBody').innerHTML = `
+        <h2 style="margin:0 0 12px">${t.title}</h2>
+        <div class="drawer-meta-grid">
+          <span class="dm-label">Status</span>  <span class="badge badge-${t.status}">${t.status.replace('_',' ')}</span>
+          <span class="dm-label">Priority</span><span class="badge ${PRIO_BADGE[t.priority]}">${t.priority}</span>
+          <span class="dm-label">Project</span> <span>${t.project}</span>
+          <span class="dm-label">Assigned</span><span>${assigneeNames}</span>
+          <span class="dm-label">Due</span>     <span>${due}</span>
+          ${t.estimatedHours ? `<span class="dm-label">Est.</span><span>${t.estimatedHours}h</span>` : ''}
+          ${t.actualHours    ? `<span class="dm-label">Actual</span><span>${t.actualHours}h</span>` : ''}
+        </div>
+        ${t.description ? `<p style="margin-top:16px;color:#555">${t.description}</p>` : ''}
+
+        <div class="drawer-section">
+          <div class="drawer-section-title">Change Status</div>
+          <div class="status-btns">
+            ${['todo','in_progress','testing','completed','on_hold','cancelled'].map(s =>
+              `<button class="btn-status ${t.status===s?'active':''}" onclick="changeStatus('${t._id}','${s}')">${s.replace('_',' ')}</button>`
+            ).join('')}
+          </div>
+        </div>
+
+        <div class="drawer-section">
+          <div class="drawer-section-title">Status History</div>
+          <div class="history-list">
+            ${(t.statusHistory || []).slice().reverse().map(h => `
+              <div class="history-item">
+                <span class="badge badge-${h.toStatus}">${h.toStatus.replace('_',' ')}</span>
+                <span class="history-by">${h.changedByName || ''}</span>
+                <span class="history-time">${new Date(h.changedAt).toLocaleDateString('en-IN',{day:'numeric',month:'short'})}</span>
+                ${h.remark ? `<span class="history-remark">${h.remark}</span>` : ''}
+              </div>`).join('') || '<p class="text-muted">No history.</p>'}
+          </div>
+        </div>
+
+        <div class="drawer-section">
+          <div class="drawer-section-title">Comments (${t.comments.length})</div>
+          <div id="commentList">
+            ${t.comments.map(c => `
+              <div class="comment">
+                <div class="avatar-sm" style="background:#3b82f6">${(c.authorName||'?').slice(0,2).toUpperCase()}</div>
+                <div class="comment-body">
+                  <span class="comment-author">${c.authorName}</span>
+                  <span class="comment-time">${new Date(c.createdAt).toLocaleDateString('en-IN',{day:'numeric',month:'short'})}</span>
+                  <p>${c.text}</p>
+                </div>
+              </div>`).join('') || '<p class="text-muted">No comments yet.</p>'}
+          </div>
+          <div class="comment-box">
+            <textarea id="newComment" placeholder="Add a comment…" rows="2"></textarea>
+            <button class="btn btn-primary btn-sm" onclick="postComment('${t._id}')">Post</button>
+          </div>
+        </div>
+
+        <div style="margin-top:16px;display:flex;gap:8px">
+          <button class="btn btn-secondary" onclick="closeDrawer();openTaskModal('${t._id}')">Edit Task</button>
+          <button class="btn btn-danger" onclick="closeDrawer();deleteTask('${t._id}','${t.taskId}')">Delete</button>
+        </div>
+      `;
+    }
+
+    async function changeStatus(id, status) {
+      await api('/api/admin/tasks/' + id + '/status', 'PATCH', { status });
+      closeDrawer(); loadTasks();
+    }
+
+    async function postComment(id) {
+      const text = document.getElementById('newComment').value.trim();
+      if (!text) return;
+      await api('/api/admin/tasks/' + id + '/comments', 'POST', { text });
+      openDrawer(id);
+    }
+
+    function closeDrawer() {
+      document.getElementById('drawerOverlay').classList.remove('open');
+      document.getElementById('taskDrawer').classList.remove('open');
+    }
+
+    /* ── Task Modal ── */
+    function openTaskModal(id) {
+      document.getElementById('modalOverlay').classList.add('open');
+      document.getElementById('taskModal').classList.add('open');
+      document.getElementById('modalOverlay').onclick = closeTaskModal;
+      renderTaskForm(id);
+    }
+    function closeTaskModal() {
+      document.getElementById('modalOverlay').classList.remove('open');
+      document.getElementById('taskModal').classList.remove('open');
+    }
+
+    async function renderTaskForm(id) {
+      let task = null;
+      if (id) {
+        const d = await api('/api/admin/tasks/' + id);
+        if (d.success) task = d.data;
+      }
+      document.getElementById('modalTitle').textContent = task ? 'Edit Task' : 'New Task';
+      document.getElementById('modalBody').innerHTML = taskFormHTML(task);
+      if (task) document.getElementById('editTaskId').value = task._id;
+    }
+
+    // Pre-apply filters from URL params (dashboard card links)
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('status'))   document.getElementById('filterStatus').value = params.get('status');
+    if (params.get('priority')) document.getElementById('filterPriority').value = params.get('priority');
+    if (params.get('overdue') === 'true')   document.getElementById('filterOverdue').checked = true;
+    if (params.get('dueToday') === 'true') {
+      // filter by today's date range via dueBefore/dueAfter — simplest: set overdue=false, rely on server
+      // We pass dueToday as a query param handled by buildQS
+      document.getElementById('filterDueBefore').value = new Date().toISOString().slice(0,10);
+    }
+    if (params.get('new')) openTaskModal();
+    if (params.get('id'))  openDrawer(params.get('id'));
+
+    loadTasks();
+  </script>
+  <script src="taskform.js"></script>
+</body>
+</html>

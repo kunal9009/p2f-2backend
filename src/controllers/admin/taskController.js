@@ -524,3 +524,64 @@ exports.exportCsv = async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 };
+
+// ─── GET /api/admin/tasks/activity ───
+// Global activity feed: recent status changes + comments across all tasks
+exports.activity = async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit, 10) || 30, 100);
+    const since = req.query.since ? new Date(req.query.since) : new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+    // Pull tasks that had activity since the cutoff
+    const tasks = await Task.find({
+      $or: [
+        { 'statusHistory.changedAt': { $gte: since } },
+        { 'comments.createdAt': { $gte: since } },
+      ],
+    }).select('taskId title project status assignedTo statusHistory comments');
+
+    // Flatten into a single event list
+    const events = [];
+
+    for (const task of tasks) {
+      for (const h of task.statusHistory) {
+        if (new Date(h.changedAt) >= since) {
+          events.push({
+            type: 'status_change',
+            taskId: task.taskId,
+            taskDbId: task._id,
+            title: task.title,
+            project: task.project,
+            fromStatus: h.fromStatus,
+            toStatus: h.toStatus,
+            actor: h.changedByName || 'System',
+            remark: h.remark || '',
+            timestamp: h.changedAt,
+          });
+        }
+      }
+      for (const c of task.comments) {
+        if (new Date(c.createdAt) >= since) {
+          events.push({
+            type: 'comment',
+            taskId: task.taskId,
+            taskDbId: task._id,
+            title: task.title,
+            project: task.project,
+            actor: c.authorName,
+            text: c.text,
+            timestamp: c.createdAt,
+          });
+        }
+      }
+    }
+
+    // Sort newest first and cap
+    events.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    const sliced = events.slice(0, limit);
+
+    res.json({ success: true, data: sliced, total: events.length });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};

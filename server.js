@@ -60,6 +60,10 @@ app.use('/api', apiLimiter);
 // ─── STATIC ───
 app.use('/uploads', express.static(path.join(__dirname, uploadDir)));
 
+// Serve the task-manager frontend
+app.use('/tasks-ui', express.static(path.join(__dirname, 'public')));
+app.get('/tasks-ui', (req, res) => res.redirect('/tasks-ui/index.html'));
+
 // ─── HEALTH CHECK ───
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

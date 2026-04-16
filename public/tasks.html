@@ -141,14 +141,24 @@
         const dueFmt  = due ? due.toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' }) : '—';
         const assignees = (t.assignedTo || []).map(a => a.name).join(', ') || '—';
 
-        return `<tr>
+        // Inline status dropdown — change without opening the drawer
+        const statusOptions = ['todo','in_progress','testing','completed','on_hold','cancelled']
+          .map(s => `<option value="${s}" ${t.status===s?'selected':''}>${s.replace('_',' ')}</option>`)
+          .join('');
+
+        return `<tr id="row-${t._id}">
           <td><span class="badge-taskid">${t.taskId}</span></td>
           <td class="task-title-cell">
             <span class="task-link" onclick="openDrawer('${t._id}')">${t.title}</span>
             ${t.tags && t.tags.length ? `<div class="card-tags">${t.tags.map(g=>`<span class="tag">${g}</span>`).join('')}</div>` : ''}
           </td>
           <td>${t.project || '—'}</td>
-          <td><span class="badge badge-${t.status}">${t.status.replace('_',' ')}</span></td>
+          <td>
+            <select class="inline-status-select badge badge-${t.status}"
+                    onchange="inlineStatusChange('${t._id}', this)">
+              ${statusOptions}
+            </select>
+          </td>
           <td><span class="badge ${PRIO_BADGE[t.priority] || ''}">${t.priority}</span></td>
           <td>${assignees}</td>
           <td class="${overdue ? 'text-danger' : ''}">${dueFmt}</td>
@@ -192,6 +202,18 @@
     ['filterStatus','filterPriority','filterDueBefore','filterOverdue'].forEach(id => {
       document.getElementById(id).addEventListener('change', () => { page = 1; loadTasks(); });
     });
+
+    /* ── Inline status change ── */
+    async function inlineStatusChange(id, selectEl) {
+      const status = selectEl.value;
+      // Optimistically update badge class
+      selectEl.className = `inline-status-select badge badge-${status}`;
+      const res = await api('/api/admin/tasks/' + id + '/status', 'PATCH', { status });
+      if (!res.success) {
+        alert(res.message || 'Status update failed');
+        loadTasks(); // revert
+      }
+    }
 
     /* ── Delete ── */
     async function deleteTask(id, taskId) {
@@ -315,8 +337,16 @@
       if (task) document.getElementById('editTaskId').value = task._id;
     }
 
-    // Check URL params on load
+    // Pre-apply filters from URL params (dashboard card links)
     const params = new URLSearchParams(window.location.search);
+    if (params.get('status'))   document.getElementById('filterStatus').value = params.get('status');
+    if (params.get('priority')) document.getElementById('filterPriority').value = params.get('priority');
+    if (params.get('overdue') === 'true')   document.getElementById('filterOverdue').checked = true;
+    if (params.get('dueToday') === 'true') {
+      // filter by today's date range via dueBefore/dueAfter — simplest: set overdue=false, rely on server
+      // We pass dueToday as a query param handled by buildQS
+      document.getElementById('filterDueBefore').value = new Date().toISOString().slice(0,10);
+    }
     if (params.get('new')) openTaskModal();
     if (params.get('id'))  openDrawer(params.get('id'));
 

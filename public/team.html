@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Team — MahattaART Tasks</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <div id="sidebar"></div>
+
+  <main class="main-content">
+    <div class="page-header">
+      <div>
+        <h2>Team Workload</h2>
+        <p class="text-muted">Task distribution across all IT team members</p>
+      </div>
+    </div>
+
+    <!-- TEAM OVERVIEW CHART -->
+    <div class="card" style="margin-bottom:24px">
+      <h3 class="card-title">Team Overview</h3>
+      <div class="chart-wrap" style="height:260px"><canvas id="teamChart"></canvas></div>
+    </div>
+
+    <!-- MEMBER CARDS GRID -->
+    <div id="memberGrid" class="member-grid">
+      <div class="stat-card skeleton"></div>
+      <div class="stat-card skeleton"></div>
+      <div class="stat-card skeleton"></div>
+    </div>
+  </main>
+
+  <!-- MEMBER TASK DRAWER -->
+  <div id="drawerOverlay" class="drawer-overlay" onclick="closeDrawer()"></div>
+  <div id="taskDrawer" class="task-drawer">
+    <div class="drawer-header">
+      <span id="drawerTitle" style="font-weight:700;font-size:15px"></span>
+      <button class="btn-icon" onclick="closeDrawer()">✕</button>
+    </div>
+    <div id="drawerBody" class="drawer-body"></div>
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    requireAuth();
+    renderSidebar('team');
+
+    const PRIO_BADGE   = { critical:'badge-critical', high:'badge-high', medium:'badge-medium', low:'badge-low' };
+    const STATUS_COLOR = { todo:'#94a3b8', in_progress:'#3b82f6', testing:'#f59e0b', completed:'#22c55e', on_hold:'#a855f7', cancelled:'#ef4444' };
+
+    let teamChart;
+
+    async function load() {
+      // Fetch users and dashboard data in parallel
+      const [usersRes, dashRes] = await Promise.all([
+        api('/api/admin/users?limit=100&isActive=true'),
+        api('/api/admin/tasks/dashboard'),
+      ]);
+
+      if (!usersRes.success || !dashRes.success) return;
+
+      const users     = usersRes.data;
+      const assignees = dashRes.data.assigneeBreakdown || [];
+
+      // Build a map of userId → stats
+      const statsMap = {};
+      assignees.forEach(a => { statsMap[String(a._id)] = a; });
+
+      // ── Team Overview Chart ──
+      const chartLabels = assignees.map(a => a.name || 'Unknown');
+      const chartTotal  = assignees.map(a => a.total);
+      const chartDone   = assignees.map(a => a.completed);
+      const chartOver   = assignees.map(a => a.overdue);
+
+      if (teamChart) teamChart.destroy();
+      teamChart = new Chart(document.getElementById('teamChart'), {
+        type: 'bar',
+        data: {
+          labels: chartLabels,
+          datasets: [
+            { label: 'Total',     data: chartTotal, backgroundColor: '#3b82f6', borderRadius: 4 },
+            { label: 'Completed', data: chartDone,  backgroundColor: '#22c55e', borderRadius: 4 },
+            { label: 'Overdue',   data: chartOver,  backgroundColor: '#ef4444', borderRadius: 4 },
+          ],
+        },
+        options: {
+          plugins: { legend: { position: 'bottom' } },
+          scales: { x: { stacked: false }, y: { beginAtZero: true, ticks: { stepSize: 1 } } },
+        },
+      });
+
+      // ── Member Cards ──
+      const grid = document.getElementById('memberGrid');
+      grid.innerHTML = '';
+
+      for (const user of users) {
+        const stats   = statsMap[String(user._id)] || { total: 0, completed: 0, overdue: 0 };
+        const rate    = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
+        const initials = user.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+        const avatarColors = ['#3b82f6','#22c55e','#f59e0b','#a855f7','#ef4444','#06b6d4'];
+        const color  = avatarColors[initials.charCodeAt(0) % avatarColors.length];
+
+        const card = document.createElement('div');
+        card.className = 'member-card card';
+        card.innerHTML = `
+          <div class="member-header">
+            <div class="member-avatar" style="background:${color}">${initials}</div>
+            <div class="member-info">
+              <div class="member-name">${user.name}</div>
+              <div class="member-role">${user.role} · ${user.email}</div>
+            </div>
+          </div>
+
+          <div class="member-stats">
+            <div class="mstat"><span class="mstat-val">${stats.total}</span><span class="mstat-lbl">Total</span></div>
+            <div class="mstat"><span class="mstat-val text-success">${stats.completed}</span><span class="mstat-lbl">Done</span></div>
+            <div class="mstat"><span class="mstat-val ${stats.overdue ? 'text-danger' : ''}">${stats.overdue}</span><span class="mstat-lbl">Overdue</span></div>
+            <div class="mstat"><span class="mstat-val">${rate}%</span><span class="mstat-lbl">Rate</span></div>
+          </div>
+
+          <div class="progress-wrap">
+            <div class="progress-bar">
+              <div class="progress-fill" style="width:${rate}%;background:${rate >= 80 ? '#22c55e' : rate >= 50 ? '#f59e0b' : '#ef4444'}"></div>
+            </div>
+            <span class="progress-label">${rate}% completion</span>
+          </div>
+
+          ${stats.total > 0
+            ? `<button class="btn btn-secondary btn-sm" style="width:100%;margin-top:12px"
+                       onclick="openMemberTasks('${user._id}','${user.name}')">View Tasks →</button>`
+            : `<p class="text-muted" style="font-size:13px;margin-top:12px;text-align:center">No tasks assigned</p>`}
+        `;
+        grid.appendChild(card);
+      }
+
+      if (!users.length) {
+        grid.innerHTML = '<p class="text-muted">No team members found.</p>';
+      }
+    }
+
+    async function openMemberTasks(userId, name) {
+      document.getElementById('drawerTitle').textContent = name + "'s Tasks";
+      document.getElementById('drawerOverlay').classList.add('open');
+      document.getElementById('taskDrawer').classList.add('open');
+      document.getElementById('drawerBody').innerHTML = '<p class="text-muted">Loading…</p>';
+
+      const res = await api('/api/admin/tasks?assignedTo=' + userId + '&limit=100&sort=status');
+      if (!res.success) return;
+
+      const tasks = res.data;
+      if (!tasks.length) {
+        document.getElementById('drawerBody').innerHTML = '<p class="text-muted">No tasks assigned.</p>';
+        return;
+      }
+
+      // Group by status
+      const groups = {};
+      tasks.forEach(t => { if (!groups[t.status]) groups[t.status] = []; groups[t.status].push(t); });
+
+      const statusOrder  = ['in_progress','testing','todo','on_hold','completed','cancelled'];
+      const statusLabels = { todo:'To Do', in_progress:'In Progress', testing:'Testing', completed:'Completed', on_hold:'On Hold', cancelled:'Cancelled' };
+
+      document.getElementById('drawerBody').innerHTML = `
+        <p style="margin-bottom:16px;font-size:13px;color:#64748b">${tasks.length} task${tasks.length!==1?'s':''} assigned</p>
+        ${statusOrder.filter(s => groups[s]).map(s => `
+          <div style="margin-bottom:20px">
+            <div class="drawer-section-title" style="border-left:3px solid ${STATUS_COLOR[s]};padding-left:8px">
+              ${statusLabels[s]} (${groups[s].length})
+            </div>
+            ${groups[s].map(t => {
+              const due = t.dueDate ? new Date(t.dueDate) : null;
+              const overdue = due && due < new Date() && !['completed','cancelled'].includes(t.status);
+              const dueFmt  = due ? due.toLocaleDateString('en-IN',{day:'numeric',month:'short'}) : null;
+              return `
+                <div class="drawer-task-row" onclick="window.location.href='tasks.html?id=${t._id}'">
+                  <span class="badge-taskid">${t.taskId}</span>
+                  <span class="drawer-task-title">${t.title}</span>
+                  <div style="display:flex;gap:6px;align-items:center;flex-shrink:0">
+                    <span class="badge ${PRIO_BADGE[t.priority]}">${t.priority}</span>
+                    ${dueFmt ? `<span class="card-due ${overdue?'overdue':''}">📅 ${dueFmt}</span>` : ''}
+                  </div>
+                </div>`;
+            }).join('')}
+          </div>`).join('')}
+      `;
+    }
+
+    function closeDrawer() {
+      document.getElementById('drawerOverlay').classList.remove('open');
+      document.getElementById('taskDrawer').classList.remove('open');
+    }
+
+    load();
+  </script>
+</body>
+</html>

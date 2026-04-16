@@ -458,9 +458,74 @@ input:focus, select:focus, textarea:focus {
 .alert-success { background: #dcfce7; color: #166534; }
 
 /* ── Misc ── */
-.text-muted  { color: var(--muted); font-size: 14px; }
-.text-danger { color: #ef4444; }
+.text-muted    { color: var(--muted); font-size: 14px; }
+.text-danger   { color: #ef4444; }
+.text-success  { color: #22c55e; }
 .checkbox-label { display: flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; }
+.form-hint-inline { font-size: 11px; color: var(--muted); font-weight: 400; }
+
+/* ── User Picker (task form assignees) ── */
+.user-check-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 8px;
+}
+.user-check {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px; border-radius: 8px;
+  border: 1px solid var(--border); cursor: pointer;
+  transition: border-color .15s, background .15s;
+}
+.user-check:hover  { border-color: #94a3b8; background: #f8fafc; }
+.user-check.checked { border-color: #3b82f6; background: #eff6ff; }
+.user-check input[type="checkbox"] { display: none; }
+.user-check-avatar {
+  width: 30px; height: 30px; border-radius: 50%;
+  background: #3b82f6; color: #fff;
+  font-size: 11px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.user-check-info  { display: flex; flex-direction: column; min-width: 0; }
+.user-check-name  { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.user-check-role  { font-size: 11px; color: var(--muted); text-transform: capitalize; }
+
+/* ── Team Page ── */
+.member-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+.member-card { padding: 20px; }
+.member-header { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
+.member-avatar {
+  width: 48px; height: 48px; border-radius: 50%;
+  color: #fff; font-size: 16px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.member-name { font-size: 15px; font-weight: 700; }
+.member-role { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.member-stats {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 4px; margin-bottom: 14px; text-align: center;
+}
+.mstat { display: flex; flex-direction: column; gap: 2px; }
+.mstat-val { font-size: 18px; font-weight: 700; }
+.mstat-lbl { font-size: 11px; color: var(--muted); }
+.progress-wrap { display: flex; flex-direction: column; gap: 4px; }
+.progress-bar  { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+.progress-fill { height: 100%; border-radius: 3px; transition: width .4s ease; }
+.progress-label { font-size: 11px; color: var(--muted); text-align: right; }
+
+/* ── Drawer Task Row ── */
+.drawer-task-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 0; border-bottom: 1px solid var(--border);
+  cursor: pointer; font-size: 13px;
+}
+.drawer-task-row:hover { background: #f8fafc; margin: 0 -8px; padding: 8px; border-radius: 4px; }
+.drawer-task-title { flex: 1; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* ── Task Mini List (dashboard) ── */
 .task-mini-list { display: flex; flex-direction: column; gap: 2px; }

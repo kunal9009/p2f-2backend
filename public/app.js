@@ -45,10 +45,11 @@ async function api(url, method = 'GET', body = null) {
 function renderSidebar(active) {
   const user = currentUser();
   const nav = [
-    { id: 'dashboard', label: 'Dashboard',  icon: '📊', href: 'dashboard.html' },
-    { id: 'kanban',    label: 'Kanban Board',icon: '📌', href: 'kanban.html'   },
-    { id: 'tasks',     label: 'All Tasks',   icon: '📋', href: 'tasks.html'    },
-    { id: 'my',        label: 'My Tasks',    icon: '🙋', href: 'my-tasks.html' },
+    { id: 'dashboard', label: 'Dashboard',   icon: '📊', href: 'dashboard.html' },
+    { id: 'kanban',    label: 'Kanban Board', icon: '📌', href: 'kanban.html'   },
+    { id: 'tasks',     label: 'All Tasks',    icon: '📋', href: 'tasks.html'    },
+    { id: 'my',        label: 'My Tasks',     icon: '🙋', href: 'my-tasks.html' },
+    { id: 'team',      label: 'Team',         icon: '👥', href: 'team.html'     },
   ];
 
   document.getElementById('sidebar').innerHTML = `

@@ -1,10 +1,48 @@
 /* Shared task create/edit form HTML + submission logic */
 
-function taskFormHTML(task) {
-  const v = task || {};
-  const assignees = (v.assignedTo || []).map(a => `${a.name}|${a.userId}|${a.email || ''}`).join('\n');
+// Cache users so we don't re-fetch on every modal open
+let _cachedUsers = null;
+
+async function fetchUsers() {
+  if (_cachedUsers) return _cachedUsers;
+  const res = await api('/api/admin/users?limit=100&isActive=true');
+  _cachedUsers = res.success ? res.data : [];
+  return _cachedUsers;
+}
+
+async function renderTaskForm(editId) {
+  let task = null;
+  if (editId) {
+    const d = await api('/api/admin/tasks/' + editId);
+    if (d.success) task = d.data;
+  }
+
+  const [users] = await Promise.all([fetchUsers()]);
+  document.getElementById('modalTitle').textContent = task ? 'Edit Task' : 'New Task';
+  document.getElementById('modalBody').innerHTML = taskFormHTML(task, users);
+}
+
+function taskFormHTML(task, users) {
+  const v   = task || {};
+  const assignedIds = new Set((v.assignedTo || []).map(a => String(a.userId)));
 
   const toDate = (d) => d ? new Date(d).toISOString().slice(0, 16) : '';
+
+  const userCheckboxes = (users || []).map(u => `
+    <label class="user-check ${assignedIds.has(String(u._id)) ? 'checked' : ''}"
+           id="uc-label-${u._id}">
+      <input type="checkbox" class="assignee-cb"
+             value="${u._id}"
+             data-name="${u.name}"
+             data-email="${u.email || ''}"
+             ${assignedIds.has(String(u._id)) ? 'checked' : ''}
+             onchange="toggleUserLabel(this)" />
+      <span class="user-check-avatar">${u.name.slice(0,2).toUpperCase()}</span>
+      <span class="user-check-info">
+        <span class="user-check-name">${u.name}</span>
+        <span class="user-check-role">${u.role}</span>
+      </span>
+    </label>`).join('');
 
   return `
     <form id="taskForm" class="task-form" onsubmit="submitTaskForm(event)">
@@ -13,17 +51,20 @@ function taskFormHTML(task) {
       <div class="form-row">
         <div class="form-group flex-2">
           <label>Title <span class="req">*</span></label>
-          <input type="text" id="fTitle" value="${v.title || ''}" required placeholder="What needs to be done?" />
+          <input type="text" id="fTitle" value="${esc(v.title)}" required
+                 placeholder="What needs to be done?" />
         </div>
         <div class="form-group">
           <label>Project</label>
-          <input type="text" id="fProject" value="${v.project || 'MahattaART'}" placeholder="MahattaART" />
+          <input type="text" id="fProject" value="${esc(v.project || 'MahattaART')}"
+                 placeholder="MahattaART" />
         </div>
       </div>
 
       <div class="form-group">
         <label>Description</label>
-        <textarea id="fDescription" rows="3" placeholder="Add details, acceptance criteria, links…">${v.description || ''}</textarea>
+        <textarea id="fDescription" rows="3"
+                  placeholder="Add details, acceptance criteria, links…">${esc(v.description)}</textarea>
       </div>
 
       <div class="form-row">
@@ -43,6 +84,9 @@ function taskFormHTML(task) {
             ).join('')}
           </select>
         </div>
+      </div>
+
+      <div class="form-row">
         <div class="form-group">
           <label>Due Date</label>
           <input type="datetime-local" id="fDueDate" value="${toDate(v.dueDate)}" />
@@ -51,33 +95,36 @@ function taskFormHTML(task) {
           <label>Reminder Date</label>
           <input type="datetime-local" id="fReminderDate" value="${toDate(v.reminderDate)}" />
         </div>
-      </div>
-
-      <div class="form-row">
         <div class="form-group">
           <label>Est. Hours</label>
-          <input type="number" id="fEstHours" value="${v.estimatedHours || ''}" min="0" step="0.5" placeholder="e.g. 4" />
+          <input type="number" id="fEstHours" value="${v.estimatedHours || ''}"
+                 min="0" step="0.5" placeholder="e.g. 4" />
         </div>
         <div class="form-group">
           <label>Actual Hours</label>
-          <input type="number" id="fActHours" value="${v.actualHours || ''}" min="0" step="0.5" placeholder="e.g. 3.5" />
-        </div>
-        <div class="form-group">
-          <label>Tags (comma-separated)</label>
-          <input type="text" id="fTags" value="${(v.tags || []).join(', ')}" placeholder="design, backend, urgent" />
+          <input type="number" id="fActHours" value="${v.actualHours || ''}"
+                 min="0" step="0.5" placeholder="e.g. 3.5" />
         </div>
       </div>
 
       <div class="form-group">
-        <label>Assignees</label>
-        <p class="form-hint">One per line: <code>Name | UserID | email@example.com</code></p>
-        <textarea id="fAssignees" rows="3" placeholder="Alice | 64abc123... | alice@mahattaart.com">${assignees}</textarea>
+        <label>Tags <span class="form-hint-inline">(comma-separated)</span></label>
+        <input type="text" id="fTags" value="${esc((v.tags || []).join(', '))}"
+               placeholder="design, backend, urgent" />
+      </div>
+
+      <div class="form-group">
+        <label>Assign To Team Members</label>
+        ${userCheckboxes
+          ? `<div class="user-check-grid">${userCheckboxes}</div>`
+          : `<p class="text-muted" style="font-size:13px">No team members found.</p>`}
       </div>
 
       <div class="form-group">
         <label class="checkbox-label">
-          <input type="checkbox" id="fEmailNotif" ${v.emailNotificationsEnabled !== false ? 'checked' : ''} />
-          Send email notifications
+          <input type="checkbox" id="fEmailNotif"
+                 ${v.emailNotificationsEnabled !== false ? 'checked' : ''} />
+          Send email notifications to assignees
         </label>
       </div>
 
@@ -92,6 +139,18 @@ function taskFormHTML(task) {
     </form>`;
 }
 
+function toggleUserLabel(cb) {
+  const label = document.getElementById('uc-label-' + cb.value);
+  if (label) label.classList.toggle('checked', cb.checked);
+}
+
+// HTML-escape helper used inside the form template
+function esc(str) {
+  return (str || '').toString()
+    .replace(/&/g,'&amp;').replace(/"/g,'&quot;')
+    .replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
 async function submitTaskForm(e) {
   e.preventDefault();
   const btn = document.getElementById('submitTaskBtn');
@@ -102,32 +161,29 @@ async function submitTaskForm(e) {
 
   const id = document.getElementById('editTaskId').value;
 
-  // Parse assignees
-  const assignees = document.getElementById('fAssignees').value
-    .split('\n')
-    .map(line => line.trim())
-    .filter(Boolean)
-    .map(line => {
-      const [name, userId, email] = line.split('|').map(s => s.trim());
-      return { name: name || '', userId: userId || undefined, email: email || '' };
-    });
+  // Collect checked assignees
+  const assignees = [...document.querySelectorAll('.assignee-cb:checked')].map(cb => ({
+    userId: cb.value,
+    name:   cb.dataset.name,
+    email:  cb.dataset.email,
+  }));
 
   const payload = {
-    title:                      document.getElementById('fTitle').value.trim(),
-    description:                document.getElementById('fDescription').value.trim(),
-    project:                    document.getElementById('fProject').value.trim() || 'MahattaART',
-    status:                     document.getElementById('fStatus').value,
-    priority:                   document.getElementById('fPriority').value,
-    dueDate:                    document.getElementById('fDueDate').value || undefined,
-    reminderDate:               document.getElementById('fReminderDate').value || undefined,
-    estimatedHours:             parseFloat(document.getElementById('fEstHours').value) || undefined,
-    actualHours:                parseFloat(document.getElementById('fActHours').value) || undefined,
-    tags:                       document.getElementById('fTags').value.split(',').map(t => t.trim()).filter(Boolean),
-    assignedTo:                 assignees,
-    emailNotificationsEnabled:  document.getElementById('fEmailNotif').checked,
+    title:                     document.getElementById('fTitle').value.trim(),
+    description:               document.getElementById('fDescription').value.trim(),
+    project:                   document.getElementById('fProject').value.trim() || 'MahattaART',
+    status:                    document.getElementById('fStatus').value,
+    priority:                  document.getElementById('fPriority').value,
+    dueDate:                   document.getElementById('fDueDate').value || undefined,
+    reminderDate:              document.getElementById('fReminderDate').value || undefined,
+    estimatedHours:            parseFloat(document.getElementById('fEstHours').value) || undefined,
+    actualHours:               parseFloat(document.getElementById('fActHours').value) || undefined,
+    tags:                      document.getElementById('fTags').value.split(',').map(t => t.trim()).filter(Boolean),
+    assignedTo:                assignees,
+    emailNotificationsEnabled: document.getElementById('fEmailNotif').checked,
   };
 
-  // Remove undefined keys
+  // Strip undefined
   Object.keys(payload).forEach(k => payload[k] === undefined && delete payload[k]);
 
   const res = id
@@ -135,10 +191,11 @@ async function submitTaskForm(e) {
     : await api('/api/admin/tasks',        'POST', payload);
 
   if (res.success) {
+    _cachedUsers = null; // invalidate so next open re-fetches
     closeTaskModal();
-    if (typeof loadTasks    === 'function') loadTasks();
-    if (typeof loadKanban   === 'function') loadKanban();
-    if (typeof loadMyTasks  === 'function') loadMyTasks();
+    if (typeof loadTasks   === 'function') loadTasks();
+    if (typeof loadKanban  === 'function') loadKanban();
+    if (typeof loadMyTasks === 'function') loadMyTasks();
   } else {
     err.textContent = res.message || 'Save failed';
     err.style.display = 'block';

@@ -748,3 +748,95 @@ input:focus, select:focus, textarea:focus {
   .page-header { flex-direction: column; }
   .stats-grid { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* ── Search page ── */
+.search-hero {
+  margin-bottom: 20px;
+}
+.search-hero-inner {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 10px 16px;
+  box-shadow: var(--shadow);
+}
+.search-hero-icon { font-size: 20px; flex-shrink: 0; }
+.search-hero-input {
+  flex: 1; border: none; outline: none;
+  font-size: 16px; background: transparent; color: var(--text);
+}
+.search-hero-input::placeholder { color: var(--muted); }
+
+.search-filter-bar {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.chip-label { font-size: 12px; color: var(--muted); font-weight: 500; }
+.chip-sep   { color: var(--border); margin: 0 4px; }
+.filter-chip {
+  padding: 4px 10px; border-radius: 20px; border: 1px solid var(--border);
+  background: var(--card); font-size: 12px; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 4px;
+  transition: background .15s, border-color .15s;
+}
+.filter-chip:hover { border-color: var(--accent); }
+.filter-chip.chip-active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.chip-count { background: rgba(0,0,0,.12); border-radius: 8px; padding: 0 5px; font-size: 10px; }
+.filter-chip.chip-active .chip-count { background: rgba(255,255,255,.3); }
+.search-meta { margin-left: auto; font-size: 12px; color: var(--muted); }
+
+.search-results-list { display: flex; flex-direction: column; gap: 10px; }
+
+.result-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 14px 16px;
+  cursor: pointer; transition: box-shadow .15s, border-color .15s;
+}
+.result-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,.1); border-color: #cbd5e1; }
+
+.result-card-header {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px;
+}
+.result-task-id { font-size: 11px; font-weight: 700; color: var(--muted); letter-spacing: .5px; }
+.result-title   { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+.result-project { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+.result-snippet {
+  font-size: 12px; color: var(--muted); font-style: italic;
+  background: #f8fafc; border-left: 3px solid #e2e8f0;
+  padding: 4px 8px; border-radius: 0 4px 4px 0; margin-bottom: 6px;
+}
+.result-footer { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+.result-assignee {
+  font-size: 11px; background: #f1f5f9; border-radius: 10px;
+  padding: 2px 8px; color: var(--muted);
+}
+.result-date { font-size: 12px; color: var(--muted); margin-left: auto; }
+.tag-chip {
+  font-size: 11px; background: #ede9fe; color: #7c3aed;
+  border-radius: 10px; padding: 2px 8px;
+}
+
+/* Match badges */
+.match-badge {
+  font-size: 10px; font-weight: 700; border-radius: 4px;
+  padding: 2px 6px; flex-shrink: 0;
+}
+.match-id      { background: #dbeafe; color: #1d4ed8; }
+.match-title   { background: #dcfce7; color: #166534; }
+.match-project { background: #fef3c7; color: #92400e; }
+.match-tag     { background: #ede9fe; color: #7c3aed; }
+.match-desc    { background: #fce7f3; color: #9d174d; }
+.match-comment { background: #e0f2fe; color: #075985; }
+
+/* Search empty state */
+.search-empty-state {
+  text-align: center; padding: 80px 20px;
+  color: var(--muted);
+}
+.search-empty-icon  { font-size: 52px; margin-bottom: 16px; }
+.search-empty-title { font-size: 20px; font-weight: 600; color: var(--text); margin-bottom: 8px; }
+.search-empty-sub   { font-size: 14px; }
+
+/* Skeleton for search results */
+.skeleton-card { pointer-events: none; }
+.skel { background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%); background-size: 200% 100%; animation: shimmer 1.2s infinite; border-radius: 4px; }
+@keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }

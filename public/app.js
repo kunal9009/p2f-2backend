@@ -130,6 +130,7 @@ function renderSidebar(active) {
     { id: 'kanban',    label: 'Kanban Board',  icon: '📌', href: 'kanban.html'   },
     { id: 'tasks',     label: 'All Tasks',     icon: '📋', href: 'tasks.html'    },
     { id: 'my',        label: 'My Tasks',      icon: '🙋', href: 'my-tasks.html', notif: true },
+    { id: 'search',    label: 'Search',        icon: '🔍', href: 'search.html'   },
     { id: 'team',      label: 'Team',          icon: '👥', href: 'team.html'     },
     { id: 'reports',   label: 'Reports',        icon: '📈', href: 'reports.html'   },
     { id: 'users',     label: 'Users',          icon: '👤', href: 'users.html',  adminOnly: true },

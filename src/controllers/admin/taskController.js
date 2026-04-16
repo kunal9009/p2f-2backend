@@ -622,3 +622,51 @@ exports.testEmail = async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 };
+
+// ─── GET /api/admin/tasks/search ───
+exports.search = async (req, res) => {
+  try {
+    const q = (req.query.q || '').trim();
+    if (!q) return res.json({ success: true, data: [] });
+
+    const limit = Math.min(parseInt(req.query.limit, 10) || 20, 50);
+
+    // Search across title, description, taskId, tags, and comment text
+    const tasks = await Task.find({
+      $or: [
+        { title:       { $regex: q, $options: 'i' } },
+        { description: { $regex: q, $options: 'i' } },
+        { taskId:      { $regex: q, $options: 'i' } },
+        { tags:        { $regex: q, $options: 'i' } },
+        { project:     { $regex: q, $options: 'i' } },
+        { 'comments.text': { $regex: q, $options: 'i' } },
+      ],
+    })
+      .sort('-updatedAt')
+      .limit(limit)
+      .select('taskId title status priority project assignedTo dueDate tags updatedAt comments');
+
+    // Annotate each result with which field matched
+    const results = tasks.map(t => {
+      const obj = t.toObject();
+      const ql  = q.toLowerCase();
+      let matchIn = 'title';
+      if (t.taskId?.toLowerCase().includes(ql))          matchIn = 'taskId';
+      else if (t.project?.toLowerCase().includes(ql))    matchIn = 'project';
+      else if (t.tags?.some(tag => tag.toLowerCase().includes(ql))) matchIn = 'tag';
+      else if (t.description?.toLowerCase().includes(ql)) matchIn = 'description';
+      else if (t.comments?.some(c => c.text?.toLowerCase().includes(ql))) matchIn = 'comment';
+      obj.matchIn = matchIn;
+      // Snippet: first comment that matched
+      if (matchIn === 'comment') {
+        const mc = t.comments.find(c => c.text?.toLowerCase().includes(ql));
+        if (mc) obj.matchSnippet = mc.text.slice(0, 120);
+      }
+      return obj;
+    });
+
+    res.json({ success: true, data: results, query: q });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};

@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MahattaART — Task Manager Login</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body class="auth-page">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+        <rect width="40" height="40" rx="10" fill="#1a1a2e"/>
+        <rect x="8" y="8" width="10" height="10" rx="2" fill="#e94560"/>
+        <rect x="22" y="8" width="10" height="10" rx="2" fill="#0f3460"/>
+        <rect x="8" y="22" width="10" height="10" rx="2" fill="#0f3460"/>
+        <rect x="22" y="22" width="10" height="10" rx="2" fill="#e94560"/>
+      </svg>
+      <div>
+        <h1>MahattaART</h1>
+        <span>Task Manager</span>
+      </div>
+    </div>
+
+    <form id="loginForm">
+      <div id="loginError" class="alert alert-error" style="display:none"></div>
+
+      <div class="form-group">
+        <label for="email">Email</label>
+        <input type="email" id="email" placeholder="admin@mahattaart.com" required />
+      </div>
+      <div class="form-group">
+        <label for="password">Password</label>
+        <div class="input-eye">
+          <input type="password" id="password" placeholder="••••••••" required />
+          <button type="button" id="togglePwd" tabindex="-1">👁</button>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-full" id="loginBtn">
+        Sign In
+      </button>
+    </form>
+  </div>
+
+  <script>
+    // Redirect if already logged in
+    if (localStorage.getItem('tm_token')) {
+      window.location.href = 'dashboard.html';
+    }
+
+    document.getElementById('togglePwd').addEventListener('click', () => {
+      const inp = document.getElementById('password');
+      inp.type = inp.type === 'password' ? 'text' : 'password';
+    });
+
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('loginBtn');
+      const err = document.getElementById('loginError');
+      err.style.display = 'none';
+      btn.textContent = 'Signing in…';
+      btn.disabled = true;
+
+      try {
+        const res = await fetch('/api/admin/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: document.getElementById('email').value.trim(),
+            password: document.getElementById('password').value,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Login failed');
+
+        localStorage.setItem('tm_token', data.token);
+        localStorage.setItem('tm_user', JSON.stringify(data.data || data.user || {}));
+        window.location.href = 'dashboard.html';
+      } catch (ex) {
+        err.textContent = ex.message;
+        err.style.display = 'block';
+        btn.textContent = 'Sign In';
+        btn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

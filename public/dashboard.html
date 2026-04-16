@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard — MahattaART Tasks</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <!-- SIDEBAR -->
+  <div id="sidebar"></div>
+
+  <main class="main-content">
+    <div class="page-header">
+      <div>
+        <h2>Dashboard</h2>
+        <p class="text-muted">Overview of all tasks across the team</p>
+      </div>
+      <button class="btn btn-primary" onclick="window.location.href='tasks.html?new=1'">+ New Task</button>
+    </div>
+
+    <!-- SUMMARY CARDS -->
+    <div class="stats-grid" id="summaryCards">
+      <div class="stat-card skeleton"></div>
+      <div class="stat-card skeleton"></div>
+      <div class="stat-card skeleton"></div>
+      <div class="stat-card skeleton"></div>
+      <div class="stat-card skeleton"></div>
+    </div>
+
+    <!-- CHARTS ROW 1 -->
+    <div class="charts-row">
+      <div class="card chart-card">
+        <h3 class="card-title">Tasks by Status</h3>
+        <div class="chart-wrap"><canvas id="statusChart"></canvas></div>
+      </div>
+      <div class="card chart-card">
+        <h3 class="card-title">Tasks by Priority</h3>
+        <div class="chart-wrap"><canvas id="priorityChart"></canvas></div>
+      </div>
+      <div class="card chart-card">
+        <h3 class="card-title">Team Workload</h3>
+        <div class="chart-wrap"><canvas id="assigneeChart"></canvas></div>
+      </div>
+    </div>
+
+    <!-- CHARTS ROW 2 -->
+    <div class="charts-row">
+      <div class="card chart-card chart-wide">
+        <h3 class="card-title">Weekly Activity (Created vs Completed)</h3>
+        <div class="chart-wrap"><canvas id="weeklyChart"></canvas></div>
+      </div>
+      <div class="card chart-card">
+        <h3 class="card-title">Tasks by Project</h3>
+        <div class="chart-wrap"><canvas id="projectChart"></canvas></div>
+      </div>
+    </div>
+
+    <!-- RECENTLY COMPLETED -->
+    <div class="card" style="margin-top:24px">
+      <h3 class="card-title">Recently Completed (Last 7 Days)</h3>
+      <div id="recentList" class="task-mini-list"></div>
+    </div>
+  </main>
+
+  <script src="app.js"></script>
+  <script>
+    requireAuth();
+    renderSidebar('dashboard');
+
+    const STATUS_COLORS = {
+      todo: '#94a3b8',
+      in_progress: '#3b82f6',
+      testing: '#f59e0b',
+      completed: '#22c55e',
+      on_hold: '#a855f7',
+      cancelled: '#ef4444',
+    };
+    const PRIORITY_COLORS = {
+      critical: '#ef4444',
+      high: '#f97316',
+      medium: '#f59e0b',
+      low: '#22c55e',
+    };
+
+    let statusChart, priorityChart, assigneeChart, weeklyChart, projectChart;
+
+    async function load() {
+      const data = await api('/api/admin/tasks/dashboard');
+      if (!data.success) return;
+      const d = data.data;
+
+      // ── Summary Cards ──
+      const cards = [
+        { label: 'Total Tasks',      value: d.summary.total,          icon: '📋', color: '#3b82f6' },
+        { label: 'Completed',        value: d.summary.completed,       icon: '✅', color: '#22c55e' },
+        { label: 'Overdue',          value: d.summary.overdue,         icon: '🚨', color: '#ef4444' },
+        { label: 'Due Today',        value: d.summary.dueToday,        icon: '⏰', color: '#f59e0b' },
+        { label: 'Completion Rate',  value: d.summary.completionRate + '%', icon: '📈', color: '#a855f7' },
+      ];
+      document.getElementById('summaryCards').innerHTML = cards.map(c => `
+        <div class="stat-card" style="border-top:4px solid ${c.color}">
+          <div class="stat-icon">${c.icon}</div>
+          <div class="stat-value">${c.value}</div>
+          <div class="stat-label">${c.label}</div>
+        </div>
+      `).join('');
+
+      // ── Status Doughnut ──
+      const statusLabels = d.statusBreakdown.map(s => s.label);
+      const statusData   = d.statusBreakdown.map(s => s.count);
+      const statusColors = d.statusBreakdown.map(s => STATUS_COLORS[s.status] || '#999');
+      if (statusChart) statusChart.destroy();
+      statusChart = new Chart(document.getElementById('statusChart'), {
+        type: 'doughnut',
+        data: { labels: statusLabels, datasets: [{ data: statusData, backgroundColor: statusColors, borderWidth: 2 }] },
+        options: { plugins: { legend: { position: 'bottom' } }, cutout: '60%' },
+      });
+
+      // ── Priority Bar ──
+      const prLabels = d.priorityBreakdown.map(p => p.priority.charAt(0).toUpperCase() + p.priority.slice(1));
+      const prData   = d.priorityBreakdown.map(p => p.count);
+      const prColors = d.priorityBreakdown.map(p => PRIORITY_COLORS[p.priority] || '#999');
+      if (priorityChart) priorityChart.destroy();
+      priorityChart = new Chart(document.getElementById('priorityChart'), {
+        type: 'bar',
+        data: { labels: prLabels, datasets: [{ label: 'Tasks', data: prData, backgroundColor: prColors, borderRadius: 6 }] },
+        options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } },
+      });
+
+      // ── Assignee Horizontal Bar ──
+      const asgLabels  = d.assigneeBreakdown.map(a => a.name || 'Unknown');
+      const asgTotal   = d.assigneeBreakdown.map(a => a.total);
+      const asgDone    = d.assigneeBreakdown.map(a => a.completed);
+      const asgOverdue = d.assigneeBreakdown.map(a => a.overdue);
+      if (assigneeChart) assigneeChart.destroy();
+      assigneeChart = new Chart(document.getElementById('assigneeChart'), {
+        type: 'bar',
+        data: {
+          labels: asgLabels,
+          datasets: [
+            { label: 'Total',     data: asgTotal,   backgroundColor: '#3b82f6', borderRadius: 4 },
+            { label: 'Completed', data: asgDone,    backgroundColor: '#22c55e', borderRadius: 4 },
+            { label: 'Overdue',   data: asgOverdue, backgroundColor: '#ef4444', borderRadius: 4 },
+          ],
+        },
+        options: { indexAxis: 'y', plugins: { legend: { position: 'bottom' } }, scales: { x: { beginAtZero: true } } },
+      });
+
+      // ── Weekly Activity Line ──
+      const weekLabels = d.weeklyActivity.map(w => `Week ${w._id.week}`);
+      const wkCreated  = d.weeklyActivity.map(w => w.created);
+      const wkDone     = d.weeklyActivity.map(w => w.completed);
+      if (weeklyChart) weeklyChart.destroy();
+      weeklyChart = new Chart(document.getElementById('weeklyChart'), {
+        type: 'line',
+        data: {
+          labels: weekLabels,
+          datasets: [
+            { label: 'Created',   data: wkCreated, borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.1)', tension: 0.4, fill: true },
+            { label: 'Completed', data: wkDone,    borderColor: '#22c55e', backgroundColor: 'rgba(34,197,94,0.1)',  tension: 0.4, fill: true },
+          ],
+        },
+        options: { plugins: { legend: { position: 'bottom' } }, scales: { y: { beginAtZero: true } } },
+      });
+
+      // ── Project Pie ──
+      const projLabels = d.projectBreakdown.map(p => p.project);
+      const projData   = d.projectBreakdown.map(p => p.count);
+      const projColors = ['#3b82f6','#22c55e','#f59e0b','#a855f7','#ef4444','#06b6d4','#f97316'];
+      if (projectChart) projectChart.destroy();
+      projectChart = new Chart(document.getElementById('projectChart'), {
+        type: 'pie',
+        data: { labels: projLabels, datasets: [{ data: projData, backgroundColor: projColors.slice(0, projData.length) }] },
+        options: { plugins: { legend: { position: 'bottom' } } },
+      });
+
+      // ── Recently Completed ──
+      const list = d.recentlyCompleted;
+      document.getElementById('recentList').innerHTML = list.length
+        ? list.map(t => `
+            <div class="task-mini-item" onclick="window.location.href='tasks.html?id=${t._id}'">
+              <span class="badge badge-completed">completed</span>
+              <span class="task-mini-title">${t.taskId} — ${t.title}</span>
+              <span class="task-mini-meta">${t.project} · ${fmtDate(t.completedAt)}</span>
+            </div>`).join('')
+        : '<p class="text-muted" style="padding:16px">No tasks completed in the last 7 days.</p>';
+    }
+
+    function fmtDate(d) {
+      return d ? new Date(d).toLocaleDateString('en-IN', { day:'numeric', month:'short' }) : '';
+    }
+
+    load();
+  </script>
+</body>
+</html>

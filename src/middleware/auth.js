@@ -11,6 +11,11 @@ const protect = async (req, res, next) => {
       token = req.headers.authorization.split(' ')[1];
     }
 
+    // Allow token as query param for browser download links (e.g. CSV export)
+    if (!token && req.query.token) {
+      token = req.query.token;
+    }
+
     if (!token) {
       return res.status(401).json({ success: false, message: 'Not authorized, no token' });
     }

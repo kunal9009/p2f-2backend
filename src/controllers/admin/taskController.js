@@ -585,3 +585,40 @@ exports.activity = async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 };
+
+// ─── POST /api/admin/tasks/test-email ───
+exports.testEmail = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ success: false, message: 'email is required' });
+
+    const nodemailer = require('nodemailer');
+    const host = process.env.EMAIL_HOST;
+    const user = process.env.EMAIL_USER;
+    const pass = process.env.EMAIL_PASS;
+    const port = parseInt(process.env.EMAIL_PORT || '587', 10);
+
+    if (!host || !user || !pass) {
+      return res.status(503).json({
+        success: false,
+        message: 'EMAIL_HOST / EMAIL_USER / EMAIL_PASS not configured in .env',
+      });
+    }
+
+    const transporter = nodemailer.createTransport({ host, port, secure: port === 465, auth: { user, pass } });
+    await transporter.sendMail({
+      from: process.env.EMAIL_FROM || user,
+      to: email,
+      subject: 'MahattaART Task Manager — Test Email ✅',
+      html: `<div style="font-family:Arial,sans-serif;padding:32px;max-width:500px">
+        <h2 style="color:#1a1a2e">Email notifications are working!</h2>
+        <p>This is a test email from your MahattaART Task Manager.</p>
+        <p style="color:#64748b;font-size:13px">Sent at ${new Date().toLocaleString()}</p>
+      </div>`,
+    });
+
+    res.json({ success: true, message: 'Test email sent to ' + email });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};

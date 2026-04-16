@@ -131,8 +131,9 @@ function renderSidebar(active) {
     { id: 'tasks',     label: 'All Tasks',     icon: '📋', href: 'tasks.html'    },
     { id: 'my',        label: 'My Tasks',      icon: '🙋', href: 'my-tasks.html', notif: true },
     { id: 'team',      label: 'Team',          icon: '👥', href: 'team.html'     },
-    { id: 'reports',   label: 'Reports',       icon: '📈', href: 'reports.html'  },
-    { id: 'users',     label: 'Users',         icon: '⚙️', href: 'users.html', adminOnly: true },
+    { id: 'reports',   label: 'Reports',        icon: '📈', href: 'reports.html'   },
+    { id: 'users',     label: 'Users',          icon: '👤', href: 'users.html',  adminOnly: true },
+    { id: 'settings',  label: 'Settings',       icon: '⚙️', href: 'settings.html' },
   ];
 
   const visibleNav = nav.filter(n => !n.adminOnly || user.role === 'admin');

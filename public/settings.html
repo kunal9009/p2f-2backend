@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Settings — MahattaART Tasks</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="sidebar"></div>
+
+  <main class="main-content">
+    <div class="page-header">
+      <div>
+        <h2>Settings</h2>
+        <p class="text-muted">Email notifications, scheduler status, and system info</p>
+      </div>
+    </div>
+
+    <div class="settings-grid">
+
+      <!-- EMAIL CONFIG INFO -->
+      <div class="card settings-card">
+        <h3 class="settings-section-title">📧 Email Notifications</h3>
+        <p class="settings-desc">
+          Email alerts are sent via SMTP (nodemailer). Configure the variables below
+          in your <code>.env</code> file and restart the server. Once set, use the
+          test button to verify delivery.
+        </p>
+
+        <div class="env-table">
+          <div class="env-row"><code>EMAIL_HOST</code><span>SMTP host (e.g. smtp.gmail.com)</span></div>
+          <div class="env-row"><code>EMAIL_PORT</code><span>587 for TLS, 465 for SSL</span></div>
+          <div class="env-row"><code>EMAIL_USER</code><span>Your email address</span></div>
+          <div class="env-row"><code>EMAIL_PASS</code><span>App password (not your login password)</span></div>
+          <div class="env-row"><code>EMAIL_FROM</code><span>"MahattaART Tasks &lt;you@example.com&gt;"</span></div>
+        </div>
+
+        <div class="settings-field">
+          <label>Send test email to</label>
+          <div class="settings-row">
+            <input type="email" id="testEmail" class="input-sm" style="flex:1"
+                   placeholder="your-email@example.com" />
+            <button class="btn btn-primary btn-sm" onclick="sendTestEmail()">Send Test</button>
+          </div>
+          <div id="testResult" style="display:none;margin-top:8px;font-size:13px"></div>
+        </div>
+      </div>
+
+      <!-- SCHEDULER STATUS -->
+      <div class="card settings-card">
+        <h3 class="settings-section-title">⏰ Reminder Scheduler</h3>
+        <p class="settings-desc">Cron jobs run automatically when the server starts.</p>
+
+        <div class="schedule-table">
+          <div class="schedule-row">
+            <div class="schedule-icon">🌅</div>
+            <div>
+              <div class="schedule-name">Daily Reminders</div>
+              <div class="schedule-time">Runs every day at 9:00 AM</div>
+            </div>
+            <span class="schedule-badge active">Active</span>
+          </div>
+          <div class="schedule-row">
+            <div class="schedule-icon">🔁</div>
+            <div>
+              <div class="schedule-name">Due-Soon Alert</div>
+              <div class="schedule-time">Tasks due within 24 hours</div>
+            </div>
+            <span class="schedule-badge active">Active</span>
+          </div>
+          <div class="schedule-row">
+            <div class="schedule-icon">🚨</div>
+            <div>
+              <div class="schedule-name">Overdue Alert</div>
+              <div class="schedule-time">Tasks past due date (daily 9 AM)</div>
+            </div>
+            <span class="schedule-badge active">Active</span>
+          </div>
+          <div class="schedule-row">
+            <div class="schedule-icon">🔔</div>
+            <div>
+              <div class="schedule-name">Custom Reminders</div>
+              <div class="schedule-time">Checks every hour for custom reminder dates</div>
+            </div>
+            <span class="schedule-badge active">Active</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- QUICK STATS -->
+      <div class="card settings-card">
+        <h3 class="settings-section-title">📊 System Snapshot</h3>
+        <div id="systemStats" class="env-table">
+          <div class="env-row"><span>Loading…</span></div>
+        </div>
+      </div>
+
+      <!-- CHANGE MY PASSWORD -->
+      <div class="card settings-card">
+        <h3 class="settings-section-title">🔐 Change My Password</h3>
+        <form class="task-form" style="padding:0;gap:12px" onsubmit="changePassword(event)">
+          <div class="form-group">
+            <label>Current Password</label>
+            <input type="password" id="curPw" required placeholder="Current password" />
+          </div>
+          <div class="form-group">
+            <label>New Password</label>
+            <input type="password" id="newPw" required minlength="6" placeholder="At least 6 characters" />
+          </div>
+          <div class="form-group">
+            <label>Confirm New Password</label>
+            <input type="password" id="confirmPw" required placeholder="Repeat new password" />
+          </div>
+          <div id="pwError"   class="alert alert-error"   style="display:none"></div>
+          <div id="pwSuccess" class="alert alert-success" style="display:none"></div>
+          <button type="submit" class="btn btn-primary btn-sm" id="pwBtn">Update Password</button>
+        </form>
+      </div>
+
+    </div>
+  </main>
+
+  <script src="app.js"></script>
+  <script>
+    requireAuth();
+    renderSidebar('settings');
+
+    /* ── Test Email ── */
+    async function sendTestEmail() {
+      const email = document.getElementById('testEmail').value.trim();
+      if (!email) { alert('Enter a recipient email.'); return; }
+      const res = document.getElementById('testResult');
+      res.style.display = 'block';
+      res.style.color = '#94a3b8';
+      res.textContent = 'Sending…';
+
+      const r = await api('/api/admin/tasks/test-email', 'POST', { email });
+      if (r.success) {
+        res.style.color = '#166534';
+        res.textContent = '✅ Test email sent! Check your inbox.';
+      } else {
+        res.style.color = '#991b1b';
+        res.textContent = '❌ ' + (r.message || 'Failed — check EMAIL_* env vars.');
+      }
+    }
+
+    /* ── System Stats ── */
+    async function loadStats() {
+      const res = await api('/api/admin/tasks/dashboard');
+      if (!res.success) return;
+      const s = res.data.summary;
+      const rows = [
+        ['Total tasks',      s.total],
+        ['Completed',        s.completed],
+        ['Overdue',          s.overdue],
+        ['Due today',        s.dueToday],
+        ['Completion rate',  s.completionRate + '%'],
+      ];
+      document.getElementById('systemStats').innerHTML = rows.map(([k,v]) => `
+        <div class="env-row"><code>${k}</code><span>${v}</span></div>`).join('');
+    }
+
+    /* ── Change Password ── */
+    async function changePassword(e) {
+      e.preventDefault();
+      const err = document.getElementById('pwError');
+      const ok  = document.getElementById('pwSuccess');
+      const btn = document.getElementById('pwBtn');
+      err.style.display = ok.style.display = 'none';
+
+      const newPw = document.getElementById('newPw').value;
+      const cnfPw = document.getElementById('confirmPw').value;
+      if (newPw !== cnfPw) {
+        err.textContent = 'Passwords do not match.';
+        err.style.display = 'block'; return;
+      }
+
+      btn.disabled = true; btn.textContent = 'Updating…';
+      const user = JSON.parse(localStorage.getItem('tm_user') || '{}');
+      const res  = await api('/api/admin/users/' + user.id + '/reset-password', 'PATCH',
+        { newPassword: newPw });
+
+      if (res.success) {
+        ok.textContent = '✅ Password updated successfully.';
+        ok.style.display = 'block';
+        document.getElementById('curPw').value = '';
+        document.getElementById('newPw').value = '';
+        document.getElementById('confirmPw').value = '';
+      } else {
+        err.textContent = res.message || 'Update failed';
+        err.style.display = 'block';
+      }
+      btn.disabled = false; btn.textContent = 'Update Password';
+    }
+
+    loadStats();
+  </script>
+</body>
+</html>

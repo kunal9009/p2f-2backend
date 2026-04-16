@@ -638,6 +638,71 @@ input:focus, select:focus, textarea:focus {
 }
 @keyframes shimmer { to { background-position: -200% 0; } }
 
+/* ── Notification Bell ── */
+.notif-bell-wrap { position: relative; }
+.notif-bell {
+  background: none; border: none; cursor: pointer;
+  font-size: 18px; padding: 4px; line-height: 1;
+  position: relative; display: flex; align-items: center;
+}
+.notif-badge {
+  position: absolute; top: -4px; right: -6px;
+  background: #ef4444; color: #fff;
+  font-size: 10px; font-weight: 700;
+  min-width: 16px; height: 16px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0 3px; pointer-events: none;
+}
+.notif-panel {
+  display: none; position: absolute; top: 38px; right: -8px;
+  width: 300px; background: var(--card);
+  border-radius: 10px; box-shadow: 0 8px 32px rgba(0,0,0,.2);
+  z-index: 400; max-height: 400px; overflow-y: auto;
+  border: 1px solid var(--border);
+}
+.notif-panel.open { display: block; }
+.notif-section-title {
+  padding: 10px 14px 4px;
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  color: var(--muted); letter-spacing: .5px;
+}
+.notif-item {
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 10px 14px; cursor: pointer; border-bottom: 1px solid var(--border);
+  transition: background .1s;
+}
+.notif-item:last-child { border-bottom: none; }
+.notif-item:hover { background: #f8fafc; }
+.notif-overdue .notif-task-id { color: #ef4444; }
+.notif-today   .notif-task-id { color: #f59e0b; }
+.notif-task-id    { font-size: 11px; font-family: monospace; font-weight: 700; }
+.notif-task-title { font-size: 13px; font-weight: 500; }
+.notif-task-meta  { font-size: 11px; color: var(--muted); }
+.notif-loading, .notif-empty {
+  padding: 20px; text-align: center; font-size: 13px; color: var(--muted);
+}
+
+/* ── Nav badge (My Tasks) ── */
+.nav-badge {
+  margin-left: auto; background: #ef4444; color: #fff;
+  font-size: 10px; font-weight: 700;
+  min-width: 18px; height: 18px; border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0 4px;
+}
+
+/* ── Inactive card ── */
+.card-inactive { opacity: .65; }
+.inactive-badge {
+  display: inline-block; margin-left: 6px;
+  background: #fee2e2; color: #991b1b;
+  font-size: 10px; font-weight: 700;
+  padding: 1px 6px; border-radius: 8px; vertical-align: middle;
+}
+
+/* ── Reports ── */
+.report-date-label { font-size: 13px; color: var(--muted); }
+
 /* ── Responsive ── */
 @media (max-width: 900px) {
   .charts-row { grid-template-columns: 1fr; }

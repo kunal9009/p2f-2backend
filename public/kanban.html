@@ -100,9 +100,64 @@
               ? `<div class="kanban-empty">No tasks</div>`
               : col.tasks.map(t => taskCard(t)).join('')}
           </div>
+          <div class="quick-add-wrap" id="qa-wrap-${col.status}">
+            <button class="quick-add-btn" onclick="showQuickAdd('${col.status}')">+ Add task</button>
+            <div class="quick-add-form" id="qa-form-${col.status}" style="display:none">
+              <input type="text" class="quick-add-input" id="qa-title-${col.status}"
+                     placeholder="Task title…"
+                     onkeydown="quickAddKey(event,'${col.status}')" />
+              <div class="quick-add-actions">
+                <select class="input-sm quick-add-prio" id="qa-prio-${col.status}">
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                  <option value="critical">Critical</option>
+                  <option value="low">Low</option>
+                </select>
+                <button class="btn btn-primary btn-sm" onclick="submitQuickAdd('${col.status}')">Add</button>
+                <button class="btn btn-secondary btn-sm" onclick="hideQuickAdd('${col.status}')">✕</button>
+              </div>
+            </div>
+          </div>
         `;
         board.appendChild(colEl);
       });
+    }
+
+    function showQuickAdd(status) {
+      document.getElementById('qa-form-' + status).style.display = 'block';
+      document.querySelector('#qa-wrap-' + status + ' .quick-add-btn').style.display = 'none';
+      document.getElementById('qa-title-' + status).focus();
+    }
+
+    function hideQuickAdd(status) {
+      document.getElementById('qa-form-' + status).style.display = 'none';
+      document.querySelector('#qa-wrap-' + status + ' .quick-add-btn').style.display = 'block';
+      document.getElementById('qa-title-' + status).value = '';
+    }
+
+    function quickAddKey(e, status) {
+      if (e.key === 'Enter') submitQuickAdd(status);
+      if (e.key === 'Escape') hideQuickAdd(status);
+    }
+
+    async function submitQuickAdd(status) {
+      const title = document.getElementById('qa-title-' + status).value.trim();
+      if (!title) return;
+      const priority = document.getElementById('qa-prio-' + status).value;
+
+      const res = await api('/api/admin/tasks', 'POST', {
+        title,
+        priority,
+        status,
+        project: currentProject || 'MahattaART',
+      });
+
+      if (res.success) {
+        hideQuickAdd(status);
+        loadKanban();
+      } else {
+        alert(res.message || 'Failed to create task');
+      }
     }
 
     function taskCard(t) {

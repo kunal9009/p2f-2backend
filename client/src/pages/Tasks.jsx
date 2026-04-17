@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { api, getToken } from '../api';
 import Modal from '../components/Modal';
 import TaskForm from '../components/TaskForm';
+import TaskDetail from '../components/TaskDetail';
 
 const STATUSES   = ['todo','in_progress','testing','on_hold','completed','cancelled'];
 const PRIORITIES = ['critical','high','medium','low'];
@@ -233,19 +234,21 @@ export default function Tasks() {
         </div>
       )}
 
-      {/* Task modal */}
-      {modal && (
-        <Modal
-          title={modal === 'new' ? 'New Task' : 'Edit Task'}
-          onClose={() => setModal(null)}
-          wide
-        >
-          <TaskForm
-            taskId={modal === 'new' ? null : modal}
-            onClose={() => setModal(null)}
-            onSaved={() => { setModal(null); load(); }}
-          />
+      {/* New task modal */}
+      {modal === 'new' && (
+        <Modal title="New Task" onClose={() => setModal(null)} wide>
+          <TaskForm onClose={() => setModal(null)} onSaved={() => { setModal(null); load(); }} />
         </Modal>
+      )}
+
+      {/* Task detail drawer */}
+      {modal && modal !== 'new' && (
+        <div className="drawer-overlay" onClick={e => { if (e.target === e.currentTarget) setModal(null); }}>
+          <div className="drawer">
+            <button className="drawer-close" onClick={() => setModal(null)}>✕</button>
+            <TaskDetail taskId={modal} onClose={() => setModal(null)} onUpdated={load} />
+          </div>
+        </div>
       )}
     </div>
   );

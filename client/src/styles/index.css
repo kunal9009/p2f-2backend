@@ -894,3 +894,25 @@ body { display: block; }
 
 /* NavLink — react-router active class */
 a.nav-item { text-decoration: none; }
+
+/* ── Task Detail Drawer ── */
+.drawer-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.35);
+  z-index: 200; display: flex; justify-content: flex-end;
+}
+.drawer {
+  width: 520px; max-width: 100vw;
+  background: var(--card); height: 100%; overflow: hidden;
+  display: flex; flex-direction: column;
+  box-shadow: -4px 0 24px rgba(0,0,0,.15);
+  position: relative;
+  animation: slideIn .2s ease;
+}
+.drawer-close {
+  position: absolute; top: 12px; right: 14px; z-index: 1;
+  background: none; border: none; font-size: 18px;
+  color: var(--muted); cursor: pointer; padding: 4px 8px;
+  border-radius: 6px; line-height: 1;
+}
+.drawer-close:hover { background: var(--border); color: var(--text); }
+@keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }

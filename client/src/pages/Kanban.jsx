@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { api } from '../api';
 import Modal from '../components/Modal';
 import TaskForm from '../components/TaskForm';
+import TaskDetail from '../components/TaskDetail';
 
 const COLS = [
   { status: 'todo',        label: 'To Do',       color: '#64748b' },
@@ -97,7 +98,7 @@ export default function Kanban() {
                   <div className="kanban-card-title">{task.title}</div>
                   {task.project && <div className="kanban-card-project">📁 {task.project}</div>}
                   <div className="kanban-card-footer">
-                    <span className="priority-badge priority-{task.priority}" style={{ background: PRIORITY_COLOR[task.priority]+'20', color: PRIORITY_COLOR[task.priority], fontSize:10, padding:'2px 6px', borderRadius:4 }}>
+                    <span style={{ background: PRIORITY_COLOR[task.priority]+'20', color: PRIORITY_COLOR[task.priority], fontSize:10, padding:'2px 6px', borderRadius:4, fontWeight:600 }}>
                       {task.priority}
                     </span>
                     {task.dueDate && (
@@ -140,19 +141,25 @@ export default function Kanban() {
         </div>
       )}
 
-      {modal && (
-        <Modal
-          title={modal.type === 'edit' ? 'Edit Task' : 'New Task'}
-          onClose={() => setModal(null)}
-          wide
-        >
+      {/* New task modal */}
+      {modal?.type === 'new' && (
+        <Modal title="New Task" onClose={() => setModal(null)} wide>
           <TaskForm
-            taskId={modal.taskId}
             defaultStatus={modal.status}
             onClose={() => setModal(null)}
             onSaved={() => { setModal(null); load(); }}
           />
         </Modal>
+      )}
+
+      {/* Task detail drawer */}
+      {modal?.type === 'edit' && (
+        <div className="drawer-overlay" onClick={e => { if (e.target === e.currentTarget) setModal(null); }}>
+          <div className="drawer">
+            <button className="drawer-close" onClick={() => setModal(null)}>✕</button>
+            <TaskDetail taskId={modal.taskId} onClose={() => setModal(null)} onUpdated={load} />
+          </div>
+        </div>
       )}
     </div>
   );

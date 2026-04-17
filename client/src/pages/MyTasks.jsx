@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { api } from '../api';
 import Modal from '../components/Modal';
 import TaskForm from '../components/TaskForm';
+import TaskDetail from '../components/TaskDetail';
 
 const STATUS_ORDER = ['in_progress','todo','testing','on_hold','completed','cancelled'];
 const SCOLOR = { todo:'#64748b', in_progress:'#f59e0b', testing:'#8b5cf6', on_hold:'#94a3b8', completed:'#10b981', cancelled:'#ef4444' };
@@ -106,14 +107,19 @@ export default function MyTasks() {
         })
       )}
 
-      {modal && (
-        <Modal title={modal === 'new' ? 'New Task' : 'Edit Task'} onClose={() => setModal(null)} wide>
-          <TaskForm
-            taskId={modal === 'new' ? null : modal}
-            onClose={() => setModal(null)}
-            onSaved={() => { setModal(null); load(); }}
-          />
+      {modal === 'new' && (
+        <Modal title="New Task" onClose={() => setModal(null)} wide>
+          <TaskForm onClose={() => setModal(null)} onSaved={() => { setModal(null); load(); }} />
         </Modal>
+      )}
+
+      {modal && modal !== 'new' && (
+        <div className="drawer-overlay" onClick={e => { if (e.target === e.currentTarget) setModal(null); }}>
+          <div className="drawer">
+            <button className="drawer-close" onClick={() => setModal(null)}>✕</button>
+            <TaskDetail taskId={modal} onClose={() => setModal(null)} onUpdated={load} />
+          </div>
+        </div>
       )}
     </div>
   );

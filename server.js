@@ -35,7 +35,7 @@ const vendorProductRoutes = require('./src/routes/vendor/productRoutes');
 
 const app = express();
 
-// ─── DEBUG ENV CHECK (IMPORTANT) ───
+// ─── DEBUG ENV CHECK ───
 console.log("ENV CHECK → MONGO_URI:", process.env.MONGO_URI);
 
 // ─── ENSURE UPLOAD DIRECTORY EXISTS ───
@@ -60,23 +60,62 @@ app.use('/api', apiLimiter);
 // ─── STATIC ───
 app.use('/uploads', express.static(path.join(__dirname, uploadDir)));
 
-// Serve the task-manager frontend (vanilla)
+// Vanilla UI
 app.use('/tasks-ui', express.static(path.join(__dirname, 'public')));
 app.get('/tasks-ui', (req, res) => res.redirect('/tasks-ui/index.html'));
 
-// Serve the React task-manager frontend
+// React UI
 const reactDist = path.join(__dirname, 'client-dist');
 app.use('/app', express.static(reactDist));
 app.get('/app/*', (req, res) => {
   const indexPath = path.join(reactDist, 'index.html');
   res.sendFile(indexPath, err => {
-    if (err) res.status(404).json({ success: false, message: 'React build not found. Run: cd client && npm run build' });
+    if (err) res.status(404).json({
+      success: false,
+      message: 'React build not found'
+    });
   });
 });
 
 // ─── HEALTH CHECK ───
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// ✅ ROOT CHECK
+app.get('/', (req, res) => {
+  res.send('MahattaART Backend is running ✅');
+});
+
+// ✅ ADMIN CREATE ROUTE (IMPORTANT FIX)
+app.get('/create-admin', async (req, res) => {
+  try {
+    const User = require('./src/models/User');
+    const bcrypt = require('bcryptjs');
+
+    const email = 'admin@mahattaart.com';
+    const password = 'admin@1234';
+
+    const existing = await User.findOne({ email });
+    if (existing) {
+      return res.send('Admin already exists ✅');
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const user = new User({
+      name: 'Admin',
+      email: email,
+      password: hashedPassword,
+      role: 'admin'
+    });
+
+    await user.save();
+
+    res.send('Admin created successfully ✅');
+  } catch (err) {
+    res.send('Error: ' + err.message);
+  }
 });
 
 // ─── PUBLIC API ───
@@ -103,7 +142,10 @@ app.use('/api/vendor/products', vendorProductRoutes);
 
 // ─── 404 ───
 app.use((req, res) => {
-  res.status(404).json({ success: false, message: `Route ${req.method} ${req.path} not found` });
+  res.status(404).json({
+    success: false,
+    message: `Route ${req.method} ${req.path} not found`
+  });
 });
 
 // ─── ERROR HANDLER ───

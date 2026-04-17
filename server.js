@@ -57,9 +57,19 @@ app.use('/api', apiLimiter);
 // Serve uploaded files
 app.use('/uploads', express.static(path.join(__dirname, uploadDir)));
 
-// Serve the task-manager frontend
+// Serve the task-manager frontend (vanilla)
 app.use('/tasks-ui', express.static(path.join(__dirname, 'public')));
 app.get('/tasks-ui', (req, res) => res.redirect('/tasks-ui/index.html'));
+
+// Serve the React task-manager frontend
+const reactDist = path.join(__dirname, 'client-dist');
+app.use('/app', express.static(reactDist));
+app.get('/app/*', (req, res) => {
+  const indexPath = path.join(reactDist, 'index.html');
+  res.sendFile(indexPath, err => {
+    if (err) res.status(404).json({ success: false, message: 'React build not found. Run: cd client && npm run build' });
+  });
+});
 
 // ─── HEALTH CHECK ───
 app.get('/health', (req, res) => {

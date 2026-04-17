@@ -1,9 +1,11 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { api, getToken } from '../api';
+import { useToast } from '../contexts/ToastContext';
 import Modal from '../components/Modal';
 import TaskForm from '../components/TaskForm';
 import TaskDetail from '../components/TaskDetail';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 const STATUSES   = ['todo','in_progress','testing','on_hold','completed','cancelled'];
 const PRIORITIES = ['critical','high','medium','low'];
@@ -14,12 +16,14 @@ export default function Tasks() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
 
+  const { toast } = useToast();
   const [tasks,    setTasks]    = useState([]);
   const [total,    setTotal]    = useState(0);
   const [page,     setPage]     = useState(1);
   const [loading,  setLoading]  = useState(true);
   const [selected, setSelected] = useState([]);
   const [modal,    setModal]    = useState(null); // null | 'new' | taskId string
+  const [confirm,  setConfirm]  = useState(null);
 
   // Filters
   const [filters, setFilters] = useState({
@@ -27,6 +31,7 @@ export default function Tasks() {
     status:    searchParams.get('status')   || '',
     priority:  searchParams.get('priority') || '',
     project:   searchParams.get('project')  || '',
+    tag:       searchParams.get('tag')      || '',
     overdue:   searchParams.get('overdue')  === 'true',
     dueToday:  searchParams.get('dueToday') === 'true',
   });
@@ -39,6 +44,7 @@ export default function Tasks() {
     if (f.status)   q.set('status', f.status);
     if (f.priority) q.set('priority', f.priority);
     if (f.project)  q.set('project', f.project);
+    if (f.tag)      q.set('tag', f.tag);
     if (f.overdue)  q.set('overdue', 'true');
     if (f.dueToday) q.set('dueToday', 'true');
     q.set('page', p); q.set('limit', LIMIT);
@@ -71,27 +77,41 @@ export default function Tasks() {
     setPage(1);
   }
 
-  const hasFilters = filters.search || filters.status || filters.priority || filters.project || filters.overdue || filters.dueToday;
+  const hasFilters = filters.search || filters.status || filters.priority || filters.project || filters.tag || filters.overdue || filters.dueToday;
 
-  async function changeStatus(taskId, newStatus) {
-    await api('/api/admin/tasks/' + taskId + '/status', 'PATCH', { status: newStatus });
-    load();
+  async function changeStatus(id, newStatus) {
+    const res = await api('/api/admin/tasks/' + id + '/status', 'PATCH', { status: newStatus });
+    if (res.success) { toast('Status updated', 'success'); load(); }
+    else toast(res.message || 'Update failed', 'error');
   }
 
-  async function deleteTask(taskId) {
-    if (!confirm('Delete this task?')) return;
-    await api('/api/admin/tasks/' + taskId, 'DELETE');
-    load();
+  function deleteTask(id) {
+    setConfirm({
+      message: 'Delete this task? This cannot be undone.',
+      onConfirm: async () => {
+        setConfirm(null);
+        const res = await api('/api/admin/tasks/' + id, 'DELETE');
+        if (res.success) { toast('Task deleted', 'info'); load(); }
+        else toast(res.message || 'Delete failed', 'error');
+      },
+    });
   }
 
-  async function bulkDelete() {
-    if (!confirm(`Delete ${selected.length} tasks?`)) return;
-    await Promise.all(selected.map(id => api('/api/admin/tasks/' + id, 'DELETE')));
-    setSelected([]); load();
+  function bulkDelete() {
+    setConfirm({
+      message: `Permanently delete ${selected.length} task${selected.length>1?'s':''}?`,
+      onConfirm: async () => {
+        setConfirm(null);
+        await Promise.all(selected.map(id => api('/api/admin/tasks/' + id, 'DELETE')));
+        toast(`${selected.length} tasks deleted`, 'info');
+        setSelected([]); load();
+      },
+    });
   }
 
   async function bulkStatus(status) {
     await Promise.all(selected.map(id => api('/api/admin/tasks/' + id + '/status', 'PATCH', { status })));
+    toast(`${selected.length} tasks updated to "${status.replace('_',' ')}"`, 'success');
     setSelected([]); load();
   }
 
@@ -138,7 +158,9 @@ export default function Tasks() {
           {PRIORITIES.map(p => <option key={p} value={p}>{p}</option>)}
         </select>
         <input className="input-sm" placeholder="Project…" value={filters.project}
-          onChange={e => setFilter('project', e.target.value)} style={{ width:120 }} />
+          onChange={e => setFilter('project', e.target.value)} style={{ width:110 }} />
+        <input className="input-sm" placeholder="Tag…" value={filters.tag}
+          onChange={e => setFilter('tag', e.target.value)} style={{ width:90 }} />
         <label className="input-sm" style={{ display:'flex', alignItems:'center', gap:4, padding:'0 8px', cursor:'pointer' }}>
           <input type="checkbox" checked={filters.overdue} onChange={e => setFilter('overdue', e.target.checked)} />
           Overdue
@@ -232,6 +254,17 @@ export default function Tasks() {
           <span style={{ fontSize:13, color:'#64748b' }}>Page {page} of {pages}</span>
           <button className="btn btn-secondary btn-sm" disabled={page === pages} onClick={() => setPage(p => p+1)}>Next →</button>
         </div>
+      )}
+
+      {/* Confirm dialog */}
+      {confirm && (
+        <ConfirmDialog
+          message={confirm.message}
+          confirmLabel="Delete"
+          danger
+          onConfirm={confirm.onConfirm}
+          onCancel={() => setConfirm(null)}
+        />
       )}
 
       {/* New task modal */}

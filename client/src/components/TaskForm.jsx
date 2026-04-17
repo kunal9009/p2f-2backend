@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../api';
+import { useToast } from '../contexts/ToastContext';
 
 const STATUSES   = ['todo','in_progress','testing','on_hold','completed','cancelled'];
 const PRIORITIES = ['critical','high','medium','low'];
 
 export default function TaskForm({ taskId, defaultStatus, onClose, onSaved }) {
+  const { toast }             = useToast();
   const [users,   setUsers]   = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving,  setSaving]  = useState(false);
@@ -12,7 +14,7 @@ export default function TaskForm({ taskId, defaultStatus, onClose, onSaved }) {
   const [form, setForm] = useState({
     title: '', description: '', status: defaultStatus || 'todo',
     priority: 'medium', project: '', dueDate: '', reminderDate: '',
-    tags: '', assignedTo: [],
+    tags: '', assignedTo: [], estimatedHours: '', actualHours: '',
   });
 
   useEffect(() => {
@@ -32,8 +34,10 @@ export default function TaskForm({ taskId, defaultStatus, onClose, onSaved }) {
           project:      t.project || '',
           dueDate:      t.dueDate      ? t.dueDate.slice(0,10)      : '',
           reminderDate: t.reminderDate ? t.reminderDate.slice(0,10) : '',
-          tags:         (t.tags || []).join(', '),
-          assignedTo:   (t.assignedTo || []).map(a => a.userId),
+          tags:           (t.tags || []).join(', '),
+          assignedTo:     (t.assignedTo || []).map(a => a.userId),
+          estimatedHours: t.estimatedHours || '',
+          actualHours:    t.actualHours    || '',
         });
       }
       setLoading(false);
@@ -62,8 +66,10 @@ export default function TaskForm({ taskId, defaultStatus, onClose, onSaved }) {
       ...form,
       tags:         form.tags.split(',').map(t => t.trim()).filter(Boolean),
       assignedTo:   selected.map(u => ({ userId: u._id||u.id, name: u.name, email: u.email })),
-      dueDate:      form.dueDate      || undefined,
-      reminderDate: form.reminderDate || undefined,
+      dueDate:        form.dueDate        || undefined,
+      reminderDate:   form.reminderDate   || undefined,
+      estimatedHours: form.estimatedHours ? Number(form.estimatedHours) : undefined,
+      actualHours:    form.actualHours    ? Number(form.actualHours)    : undefined,
     };
 
     const res = await api(
@@ -72,8 +78,8 @@ export default function TaskForm({ taskId, defaultStatus, onClose, onSaved }) {
       payload,
     );
     setSaving(false);
-    if (res.success) { onSaved && onSaved(res.data); }
-    else             { setError(res.message || 'Save failed'); }
+    if (res.success) { toast(taskId ? 'Task updated' : 'Task created', 'success'); onSaved && onSaved(res.data); }
+    else             { setError(res.message || 'Save failed'); toast(res.message || 'Save failed', 'error'); }
   }
 
   if (loading) return <div style={{ padding: 32, textAlign: 'center', color: '#64748b' }}>Loading…</div>;
@@ -126,6 +132,17 @@ export default function TaskForm({ taskId, defaultStatus, onClose, onSaved }) {
       <div className="form-group">
         <label>Tags (comma-separated)</label>
         <input value={form.tags} onChange={e => set('tags', e.target.value)} placeholder="bug, feature, urgent" />
+      </div>
+
+      <div className="form-row">
+        <div className="form-group">
+          <label>Est. Hours</label>
+          <input type="number" min="0" step="0.5" value={form.estimatedHours} onChange={e => set('estimatedHours', e.target.value)} placeholder="e.g. 4" />
+        </div>
+        <div className="form-group">
+          <label>Actual Hours</label>
+          <input type="number" min="0" step="0.5" value={form.actualHours} onChange={e => set('actualHours', e.target.value)} placeholder="e.g. 6" />
+        </div>
       </div>
 
       <div className="form-group">

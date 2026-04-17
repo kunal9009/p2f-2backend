@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
 import { api } from '../api';
 
 export default function Settings() {
-  const { user } = useAuth();
+  const { user }   = useAuth();
+  const { toast }  = useToast();
   const [stats,      setStats]      = useState(null);
   const [testEmail,  setTestEmail]  = useState('');
   const [testResult, setTestResult] = useState(null);
@@ -18,10 +20,11 @@ export default function Settings() {
   }, []);
 
   async function sendTestEmail() {
-    if (!testEmail.trim()) { alert('Enter a recipient email.'); return; }
+    if (!testEmail.trim()) { toast('Enter a recipient email.', 'warning'); return; }
     setTestLoading(true); setTestResult(null);
     const res = await api('/api/admin/tasks/test-email', 'POST', { email: testEmail });
     setTestResult({ ok: res.success, msg: res.success ? '✅ Test email sent! Check your inbox.' : '❌ ' + (res.message || 'Failed — check EMAIL_* env vars.') });
+    toast(res.success ? 'Test email sent!' : 'Email send failed', res.success ? 'success' : 'error');
     setTestLoading(false);
   }
 
@@ -32,6 +35,7 @@ export default function Settings() {
     const uid = user?.id || user?._id;
     const res = await api('/api/admin/users/' + uid + '/reset-password', 'PATCH', { newPassword: pwForm.newPw });
     if (res.success) {
+      toast('Password updated successfully', 'success');
       setPwState({loading:false,error:'',success:'✅ Password updated successfully.'});
       setPwForm({ curPw:'', newPw:'', confirmPw:'' });
     } else {

@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { ToastProvider } from './contexts/ToastContext';
 import Layout from './components/Layout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
@@ -28,6 +29,7 @@ function AdminRoute({ children }) {
 export default function App() {
   return (
     <AuthProvider>
+      <ToastProvider>
       <BrowserRouter basename="/app">
         <Routes>
           <Route path="/login" element={<Login />} />
@@ -45,6 +47,7 @@ export default function App() {
           </Route>
         </Routes>
       </BrowserRouter>
+      </ToastProvider>
     </AuthProvider>
   );
 }

@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../api';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
 import TaskForm from './TaskForm';
+import ConfirmDialog from './ConfirmDialog';
 
 const STATUSES   = ['todo','in_progress','testing','on_hold','completed','cancelled'];
 const PCOLOR = { critical:'#ef4444', high:'#f97316', medium:'#3b82f6', low:'#10b981' };
@@ -9,12 +11,14 @@ const SCOLOR = { todo:'#64748b', in_progress:'#f59e0b', testing:'#8b5cf6', on_ho
 
 export default function TaskDetail({ taskId, onClose, onUpdated }) {
   const { user, isAdmin } = useAuth();
+  const { toast } = useToast();
   const [task,      setTask]      = useState(null);
   const [loading,   setLoading]   = useState(true);
   const [editing,   setEditing]   = useState(false);
   const [comment,   setComment]   = useState('');
   const [posting,   setPosting]   = useState(false);
-  const [tab,       setTab]       = useState('details'); // 'details' | 'comments' | 'history'
+  const [tab,       setTab]       = useState('details');
+  const [confirm,   setConfirm]   = useState(null); // { message, onConfirm }
 
   useEffect(() => { load(); }, [taskId]);
 
@@ -26,31 +30,43 @@ export default function TaskDetail({ taskId, onClose, onUpdated }) {
   }
 
   async function changeStatus(newStatus) {
-    await api('/api/admin/tasks/' + taskId + '/status', 'PATCH', { status: newStatus });
-    load(); onUpdated && onUpdated();
+    const res = await api('/api/admin/tasks/' + taskId + '/status', 'PATCH', { status: newStatus });
+    if (res.success) { toast('Status updated', 'success'); load(); onUpdated && onUpdated(); }
+    else toast(res.message || 'Update failed', 'error');
   }
 
   async function postComment(e) {
     e.preventDefault();
     if (!comment.trim()) return;
     setPosting(true);
-    await api('/api/admin/tasks/' + taskId + '/comments', 'POST', { text: comment });
-    setComment(''); load();
+    const res = await api('/api/admin/tasks/' + taskId + '/comments', 'POST', { text: comment });
     setPosting(false);
-    setTab('comments');
+    if (res.success) { setComment(''); load(); setTab('comments'); toast('Comment added', 'success'); }
+    else toast(res.message || 'Failed to post comment', 'error');
   }
 
-  async function deleteComment(commentId) {
-    if (!confirm('Delete this comment?')) return;
-    await api('/api/admin/tasks/' + taskId + '/comments/' + commentId, 'DELETE');
-    load();
+  function deleteComment(commentId) {
+    setConfirm({
+      message: 'Delete this comment?',
+      onConfirm: async () => {
+        setConfirm(null);
+        const res = await api('/api/admin/tasks/' + taskId + '/comments/' + commentId, 'DELETE');
+        if (res.success) { load(); toast('Comment deleted', 'info'); }
+        else toast(res.message || 'Delete failed', 'error');
+      },
+    });
   }
 
-  async function deleteTask() {
-    if (!confirm('Permanently delete this task?')) return;
-    await api('/api/admin/tasks/' + taskId, 'DELETE');
-    onClose();
-    onUpdated && onUpdated();
+  function deleteTask() {
+    setConfirm({
+      message: 'Permanently delete this task? This cannot be undone.',
+      onConfirm: async () => {
+        setConfirm(null);
+        const res = await api('/api/admin/tasks/' + taskId, 'DELETE');
+        if (res.success) { toast('Task deleted', 'info'); onClose(); onUpdated && onUpdated(); }
+        else toast(res.message || 'Delete failed', 'error');
+      },
+    });
   }
 
   if (loading) return (
@@ -80,6 +96,15 @@ export default function TaskDetail({ taskId, onClose, onUpdated }) {
 
   return (
     <div style={{ display:'flex', flexDirection:'column', height:'100%' }}>
+      {confirm && (
+        <ConfirmDialog
+          message={confirm.message}
+          confirmLabel="Delete"
+          danger
+          onConfirm={confirm.onConfirm}
+          onCancel={() => setConfirm(null)}
+        />
+      )}
       {/* Header */}
       <div style={{ padding:'20px 24px', borderBottom:'1px solid var(--border)', flexShrink:0 }}>
         <div style={{ display:'flex', alignItems:'flex-start', gap:12, marginBottom:8 }}>

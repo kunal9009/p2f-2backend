@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../api';
+import { useToast } from '../contexts/ToastContext';
 import Modal from '../components/Modal';
 
 export default function Users() {
+  const { toast } = useToast();
   const [users,   setUsers]   = useState([]);
   const [loading, setLoading] = useState(true);
   const [modal,   setModal]   = useState(null); // null | 'new' | user object
@@ -34,7 +36,7 @@ export default function Users() {
       ? await api('/api/admin/users', 'POST', payload)
       : await api('/api/admin/users/' + (modal._id||modal.id), 'PUT', payload);
     setSaving(false);
-    if (res.success) { setModal(null); load(); }
+    if (res.success) { setModal(null); load(); toast(modal==='new'?'User created':'User updated', 'success'); }
     else setError(res.message || 'Save failed');
   }
 
@@ -47,7 +49,7 @@ export default function Users() {
     e.preventDefault(); setSaving(true); setError('');
     const res = await api('/api/admin/users/' + resetPw.userId + '/reset-password', 'PATCH', { newPassword: resetPw.newPassword });
     setSaving(false);
-    if (res.success) { setResetModal(false); setResetPw({ userId:'', newPassword:'' }); }
+    if (res.success) { setResetModal(false); setResetPw({ userId:'', newPassword:'' }); toast('Password reset successfully', 'success'); }
     else setError(res.message || 'Reset failed');
   }
 

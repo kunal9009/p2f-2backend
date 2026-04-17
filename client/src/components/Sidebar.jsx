@@ -15,7 +15,7 @@ const NAV = [
   { id: 'settings',  label: 'Settings',     icon: '⚙️', to: '/settings' },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ mobileOpen, onClose }) {
   const { user, isAdmin, logout } = useAuth();
   const navigate = useNavigate();
   const [notifCount, setNotifCount] = useState(0);
@@ -63,7 +63,7 @@ export default function Sidebar() {
   const visible = NAV.filter(n => !n.adminOnly || isAdmin);
 
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar${mobileOpen ? ' open' : ''}`}>
       <div className="sidebar-logo">
         <svg width="32" height="32" viewBox="0 0 40 40" fill="none">
           <rect width="40" height="40" rx="10" fill="#1a1a2e"/>
@@ -115,7 +115,7 @@ export default function Sidebar() {
 
       <nav className="sidebar-nav">
         {visible.map(n => (
-          <NavLink key={n.id} to={n.to} className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
+          <NavLink key={n.id} to={n.to} onClick={onClose} className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
             <span className="nav-icon">{n.icon}</span>
             <span>{n.label}</span>
             {n.notif && notifCount > 0 && <span className="nav-badge">{notifCount}</span>}

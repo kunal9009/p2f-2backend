@@ -106,7 +106,7 @@ app.get('/create-admin', async (req, res) => {
     const user = new User({
       name: 'Admin',
       email: email,
-      password: hashedPassword,
+      password: password,
       role: 'admin'
     });
 

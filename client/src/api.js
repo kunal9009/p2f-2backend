@@ -27,11 +27,7 @@ export async function api(url, method = 'GET', body = null) {
   if (body) opts.body = JSON.stringify(body);
   try {
     const res = await fetch(url, opts);
-    if (res.status === 401) {
-      clearAuth();
-      window.location.href = '/app/login';
-      return {};
-    }
+   
     return await res.json();
   } catch (err) {
     console.error('API error:', err);

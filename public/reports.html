@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Reports — MahattaART Tasks</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <div id="sidebar"></div>
+
+  <main class="main-content">
+    <div class="page-header">
+      <div>
+        <h2>Reports & Analytics</h2>
+        <p class="text-muted">Deep-dive into team performance and task trends</p>
+      </div>
+      <div class="header-actions">
+        <label class="report-date-label">From</label>
+        <input type="date" id="dateFrom" class="input-sm" />
+        <label class="report-date-label">To</label>
+        <input type="date" id="dateTo"   class="input-sm" />
+        <button class="btn btn-primary btn-sm" onclick="runReport()">Run Report</button>
+      </div>
+    </div>
+
+    <!-- KPI SUMMARY -->
+    <div class="stats-grid" id="kpiCards">
+      <div class="stat-card skeleton"></div>
+      <div class="stat-card skeleton"></div>
+      <div class="stat-card skeleton"></div>
+      <div class="stat-card skeleton"></div>
+      <div class="stat-card skeleton"></div>
+      <div class="stat-card skeleton"></div>
+    </div>
+
+    <!-- ROW 1: Status funnel + Priority heatmap -->
+    <div class="charts-row" style="margin-top:24px">
+      <div class="card chart-card chart-wide">
+        <h3 class="card-title">Task Volume by Status — Funnel</h3>
+        <div class="chart-wrap" style="height:240px"><canvas id="funnelChart"></canvas></div>
+      </div>
+      <div class="card chart-card">
+        <h3 class="card-title">Priority Distribution</h3>
+        <div class="chart-wrap" style="height:240px"><canvas id="prioRadar"></canvas></div>
+      </div>
+    </div>
+
+    <!-- ROW 2: Completion trend + Project breakdown -->
+    <div class="charts-row" style="margin-top:16px">
+      <div class="card chart-card chart-wide">
+        <h3 class="card-title">Daily Completions (Last 30 Days)</h3>
+        <div class="chart-wrap" style="height:200px"><canvas id="completionTrend"></canvas></div>
+      </div>
+      <div class="card chart-card">
+        <h3 class="card-title">Tasks by Project</h3>
+        <div class="chart-wrap" style="height:200px"><canvas id="projectBar"></canvas></div>
+      </div>
+    </div>
+
+    <!-- ROW 3: Team performance table -->
+    <div class="card" style="margin-top:16px">
+      <h3 class="card-title">Team Performance Table</h3>
+      <table class="data-table" id="teamTable">
+        <thead>
+          <tr>
+            <th>Member</th>
+            <th>Role</th>
+            <th>Total Assigned</th>
+            <th>Completed</th>
+            <th>In Progress</th>
+            <th>Overdue</th>
+            <th>Completion Rate</th>
+            <th>Performance</th>
+          </tr>
+        </thead>
+        <tbody id="teamTbody">
+          <tr><td colspan="8" style="text-align:center;padding:24px;color:#999">Run the report to see results.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ROW 4: Overdue tasks list -->
+    <div class="card" style="margin-top:16px">
+      <h3 class="card-title">Overdue Tasks</h3>
+      <div id="overdueList"></div>
+    </div>
+  </main>
+
+  <script src="app.js"></script>
+  <script>
+    requireAuth();
+    renderSidebar('reports');
+
+    // Default date range: last 30 days
+    const today = new Date();
+    const d30   = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+    document.getElementById('dateTo').value   = today.toISOString().slice(0, 10);
+    document.getElementById('dateFrom').value = d30.toISOString().slice(0, 10);
+
+    let funnelChart, prioRadar, completionTrend, projectBar;
+
+    const STATUS_COLORS = {
+      todo:'#94a3b8', in_progress:'#3b82f6', testing:'#f59e0b',
+      completed:'#22c55e', on_hold:'#a855f7', cancelled:'#ef4444',
+    };
+    const PRIO_COLORS = { critical:'#ef4444', high:'#f97316', medium:'#f59e0b', low:'#22c55e' };
+
+    async function runReport() {
+      const from = document.getElementById('dateFrom').value;
+      const to   = document.getElementById('dateTo').value;
+
+      // Fetch all needed data in parallel
+      const [dashRes, allTasksRes, overdueRes, usersRes] = await Promise.all([
+        api('/api/admin/tasks/dashboard'),
+        api(`/api/admin/tasks?limit=1000&dueAfter=${from}&dueBefore=${to}`),
+        api('/api/admin/tasks?limit=200&overdue=true'),
+        api('/api/admin/users?limit=100&isActive=true'),
+      ]);
+
+      if (!dashRes.success) return;
+      const d = dashRes.data;
+      const tasks = allTasksRes.success ? allTasksRes.data : [];
+      const overdueTasks = overdueRes.success ? overdueRes.data : [];
+
+      // ── KPI Cards ──
+      const totalInRange = tasks.length;
+      const completedInRange = tasks.filter(t => t.status === 'completed').length;
+      const inProgressCount  = tasks.filter(t => t.status === 'in_progress').length;
+      const testingCount     = tasks.filter(t => t.status === 'testing').length;
+      const rateInRange = totalInRange > 0 ? Math.round((completedInRange / totalInRange) * 100) : 0;
+
+      // Avg completion time for completed tasks that have completedAt
+      const completedWithTime = tasks.filter(t => t.status === 'completed' && t.completedAt && t.createdAt);
+      const avgDays = completedWithTime.length
+        ? Math.round(completedWithTime.reduce((s, t) =>
+            s + (new Date(t.completedAt) - new Date(t.createdAt)) / 86400000, 0
+          ) / completedWithTime.length)
+        : null;
+
+      const kpis = [
+        { label: 'Tasks in Range',    value: totalInRange,    icon: '📋', color: '#3b82f6' },
+        { label: 'Completed',         value: completedInRange,icon: '✅', color: '#22c55e' },
+        { label: 'Completion Rate',   value: rateInRange + '%', icon: '📈', color: '#a855f7' },
+        { label: 'In Progress',       value: inProgressCount, icon: '⚙️', color: '#3b82f6' },
+        { label: 'In Testing',        value: testingCount,    icon: '🧪', color: '#f59e0b' },
+        { label: avgDays !== null ? 'Avg. Completion' : 'Overdue', value: avgDays !== null ? avgDays + ' days' : overdueTasks.length, icon: avgDays !== null ? '⏱️' : '🚨', color: avgDays !== null ? '#06b6d4' : '#ef4444' },
+      ];
+      document.getElementById('kpiCards').innerHTML = kpis.map(k => `
+        <div class="stat-card" style="border-top:4px solid ${k.color}">
+          <div class="stat-icon">${k.icon}</div>
+          <div class="stat-value">${k.value}</div>
+          <div class="stat-label">${k.label}</div>
+        </div>`).join('');
+
+      // ── Status Funnel (horizontal bars) ──
+      const statusOrder = ['todo','in_progress','testing','completed','on_hold','cancelled'];
+      const statusCounts = {};
+      statusOrder.forEach(s => statusCounts[s] = tasks.filter(t => t.status === s).length);
+      if (funnelChart) funnelChart.destroy();
+      funnelChart = new Chart(document.getElementById('funnelChart'), {
+        type: 'bar',
+        data: {
+          labels: statusOrder.map(s => s.replace('_',' ').replace(/\b\w/g, c => c.toUpperCase())),
+          datasets: [{ data: statusOrder.map(s => statusCounts[s]),
+                       backgroundColor: statusOrder.map(s => STATUS_COLORS[s]),
+                       borderRadius: 6 }],
+        },
+        options: {
+          indexAxis: 'y',
+          plugins: { legend: { display: false } },
+          scales: { x: { beginAtZero: true, ticks: { stepSize: 1 } } },
+        },
+      });
+
+      // ── Priority Radar ──
+      const prioOrder  = ['critical','high','medium','low'];
+      const prioCounts = prioOrder.map(p => tasks.filter(t => t.priority === p).length);
+      if (prioRadar) prioRadar.destroy();
+      prioRadar = new Chart(document.getElementById('prioRadar'), {
+        type: 'polarArea',
+        data: {
+          labels: prioOrder.map(p => p.charAt(0).toUpperCase() + p.slice(1)),
+          datasets: [{ data: prioCounts,
+                       backgroundColor: prioOrder.map(p => PRIO_COLORS[p] + 'cc') }],
+        },
+        options: { plugins: { legend: { position: 'bottom' } } },
+      });
+
+      // ── Daily Completion Trend ──
+      const dayMap = {};
+      const d30ago = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+      for (let i = 0; i < 30; i++) {
+        const d = new Date(d30ago.getTime() + i * 86400000);
+        dayMap[d.toISOString().slice(0,10)] = 0;
+      }
+      tasks.filter(t => t.completedAt).forEach(t => {
+        const day = new Date(t.completedAt).toISOString().slice(0,10);
+        if (dayMap[day] !== undefined) dayMap[day]++;
+      });
+      const dayLabels = Object.keys(dayMap).map(d => {
+        const dt = new Date(d);
+        return dt.toLocaleDateString('en-IN', { day:'numeric', month:'short' });
+      });
+      if (completionTrend) completionTrend.destroy();
+      completionTrend = new Chart(document.getElementById('completionTrend'), {
+        type: 'bar',
+        data: {
+          labels: dayLabels,
+          datasets: [{ label: 'Completed', data: Object.values(dayMap),
+                       backgroundColor: '#22c55e99', borderColor: '#22c55e',
+                       borderWidth: 1, borderRadius: 3 }],
+        },
+        options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } },
+      });
+
+      // ── Project Bar ──
+      const projMap = {};
+      tasks.forEach(t => { const p = t.project || 'Other'; projMap[p] = (projMap[p]||0)+1; });
+      const projEntries = Object.entries(projMap).sort((a,b) => b[1]-a[1]);
+      const projColors  = ['#3b82f6','#22c55e','#f59e0b','#a855f7','#ef4444','#06b6d4','#f97316'];
+      if (projectBar) projectBar.destroy();
+      projectBar = new Chart(document.getElementById('projectBar'), {
+        type: 'doughnut',
+        data: {
+          labels: projEntries.map(([k]) => k),
+          datasets: [{ data: projEntries.map(([,v]) => v),
+                       backgroundColor: projColors.slice(0, projEntries.length) }],
+        },
+        options: { plugins: { legend: { position: 'bottom' } }, cutout: '55%' },
+      });
+
+      // ── Team Performance Table ──
+      const users = usersRes.success ? usersRes.data : [];
+      const statsMap = {};
+      d.assigneeBreakdown.forEach(a => { statsMap[String(a._id)] = a; });
+
+      document.getElementById('teamTbody').innerHTML = users.length
+        ? users.map(u => {
+            const s    = statsMap[String(u._id)] || { total:0, completed:0, overdue:0 };
+            const rate = s.total > 0 ? Math.round((s.completed/s.total)*100) : 0;
+            const inProg = d.assigneeBreakdown.find(a => String(a._id) === String(u._id));
+            const perf = rate >= 80 ? '🟢 Strong' : rate >= 50 ? '🟡 Fair' : s.total > 0 ? '🔴 Needs attention' : '—';
+            return `<tr>
+              <td><strong>${u.name}</strong></td>
+              <td><span style="text-transform:capitalize">${u.role}</span></td>
+              <td>${s.total}</td>
+              <td><span style="color:#22c55e;font-weight:600">${s.completed}</span></td>
+              <td>${s.total - s.completed - s.overdue > 0 ? s.total - s.completed - s.overdue : 0}</td>
+              <td>${s.overdue > 0 ? `<span style="color:#ef4444;font-weight:600">${s.overdue}</span>` : '0'}</td>
+              <td>
+                <div style="display:flex;align-items:center;gap:8px">
+                  <div class="progress-bar" style="width:80px;height:6px">
+                    <div class="progress-fill" style="width:${rate}%;background:${rate>=80?'#22c55e':rate>=50?'#f59e0b':'#ef4444'}"></div>
+                  </div>
+                  <span style="font-size:12px;color:#64748b">${rate}%</span>
+                </div>
+              </td>
+              <td>${perf}</td>
+            </tr>`;
+          }).join('')
+        : '<tr><td colspan="8" style="text-align:center;padding:24px;color:#999">No members found.</td></tr>';
+
+      // ── Overdue Tasks List ──
+      document.getElementById('overdueList').innerHTML = overdueTasks.length
+        ? `<table class="data-table">
+            <thead><tr><th>Task ID</th><th>Title</th><th>Project</th><th>Priority</th><th>Assigned To</th><th>Was Due</th></tr></thead>
+            <tbody>${overdueTasks.map(t => {
+              const due = t.dueDate ? new Date(t.dueDate).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}) : '—';
+              const assignees = (t.assignedTo||[]).map(a=>a.name).join(', ')||'—';
+              return `<tr>
+                <td><span class="badge-taskid">${t.taskId}</span></td>
+                <td><a href="tasks.html?id=${t._id}" style="color:#2563eb;font-weight:500">${t.title}</a></td>
+                <td>${t.project}</td>
+                <td><span class="badge badge-${t.priority}">${t.priority}</span></td>
+                <td>${assignees}</td>
+                <td style="color:#ef4444;font-weight:500">${due}</td>
+              </tr>`;
+            }).join('')}</tbody>
+          </table>`
+        : '<p class="text-muted" style="padding:16px">No overdue tasks 🎉</p>';
+    }
+
+    // Auto-run on load
+    runReport();
+  </script>
+</body>
+</html>

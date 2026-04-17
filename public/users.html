@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Users — MahattaART</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="sidebar"></div>
+
+  <main class="main-content">
+    <div class="page-header">
+      <div>
+        <h2>Team Members</h2>
+        <p class="text-muted" id="userCount">Loading…</p>
+      </div>
+      <button class="btn btn-primary" onclick="openUserModal()">+ Add Member</button>
+    </div>
+
+    <!-- USER CARDS GRID -->
+    <div id="userGrid" class="member-grid">
+      <div class="stat-card skeleton"></div>
+      <div class="stat-card skeleton"></div>
+      <div class="stat-card skeleton"></div>
+    </div>
+  </main>
+
+  <!-- USER MODAL -->
+  <div id="modalOverlay" class="modal-overlay"></div>
+  <div id="userModal" class="modal">
+    <div class="modal-header">
+      <h3 id="modalTitle">Add Team Member</h3>
+      <button class="btn-icon" onclick="closeUserModal()">✕</button>
+    </div>
+    <div id="modalBody"></div>
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    requireAuth();
+    renderSidebar('users');
+
+    const ROLE_COLORS = { admin: '#e94560', warehouse: '#3b82f6', vendor: '#f59e0b' };
+    const ROLE_ICONS  = { admin: '👑', warehouse: '🏭', vendor: '🤝' };
+
+    async function loadUsers() {
+      const [usersRes, dashRes] = await Promise.all([
+        api('/api/admin/users?limit=100'),
+        api('/api/admin/tasks/dashboard'),
+      ]);
+      if (!usersRes.success) return;
+
+      const users   = usersRes.data;
+      const statsMap = {};
+      if (dashRes.success) {
+        (dashRes.data.assigneeBreakdown || []).forEach(a => { statsMap[String(a._id)] = a; });
+      }
+
+      document.getElementById('userCount').textContent =
+        `${users.length} member${users.length !== 1 ? 's' : ''}`;
+
+      const grid = document.getElementById('userGrid');
+      if (!users.length) {
+        grid.innerHTML = '<p class="text-muted">No team members yet. Add one!</p>';
+        return;
+      }
+
+      grid.innerHTML = users.map(u => {
+        const stats   = statsMap[String(u._id)] || { total: 0, completed: 0, overdue: 0 };
+        const rate    = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
+        const initials = u.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+        const colors   = ['#3b82f6','#22c55e','#f59e0b','#a855f7','#ef4444','#06b6d4'];
+        const color    = colors[initials.charCodeAt(0) % colors.length];
+        const roleColor = ROLE_COLORS[u.role] || '#94a3b8';
+        const roleIcon  = ROLE_ICONS[u.role]  || '👤';
+        const activeStatus = u.isActive !== false;
+
+        return `
+          <div class="member-card card ${!activeStatus ? 'card-inactive' : ''}">
+            <div class="member-header">
+              <div class="member-avatar" style="background:${color}">${initials}</div>
+              <div class="member-info" style="flex:1;min-width:0">
+                <div class="member-name">${u.name}
+                  ${!activeStatus ? '<span class="inactive-badge">Inactive</span>' : ''}
+                </div>
+                <div class="member-role">
+                  <span style="color:${roleColor}">${roleIcon} ${u.role}</span>
+                </div>
+                <div style="font-size:12px;color:#94a3b8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${u.email}</div>
+              </div>
+            </div>
+
+            <div class="member-stats">
+              <div class="mstat"><span class="mstat-val">${stats.total}</span><span class="mstat-lbl">Tasks</span></div>
+              <div class="mstat"><span class="mstat-val text-success">${stats.completed}</span><span class="mstat-lbl">Done</span></div>
+              <div class="mstat"><span class="mstat-val ${stats.overdue ? 'text-danger' : ''}">${stats.overdue}</span><span class="mstat-lbl">Overdue</span></div>
+              <div class="mstat"><span class="mstat-val">${rate}%</span><span class="mstat-lbl">Rate</span></div>
+            </div>
+
+            ${stats.total > 0 ? `
+              <div class="progress-wrap" style="margin-bottom:14px">
+                <div class="progress-bar">
+                  <div class="progress-fill" style="width:${rate}%;background:${rate>=80?'#22c55e':rate>=50?'#f59e0b':'#ef4444'}"></div>
+                </div>
+              </div>` : '<div style="height:14px"></div>'}
+
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="btn btn-secondary btn-sm" style="flex:1"
+                      onclick="openUserModal('${u._id}')">Edit</button>
+              <button class="btn btn-secondary btn-sm"
+                      onclick="resetPassword('${u._id}','${u.name}')"
+                      title="Reset password">🔑</button>
+              ${activeStatus
+                ? `<button class="btn btn-secondary btn-sm" style="color:#ef4444"
+                           onclick="toggleActive('${u._id}','${u.name}',false)">Deactivate</button>`
+                : `<button class="btn btn-primary btn-sm"
+                           onclick="toggleActive('${u._id}','${u.name}',true)">Activate</button>`}
+            </div>
+          </div>`;
+      }).join('');
+    }
+
+    /* ── Modal ── */
+    function openUserModal(id) {
+      document.getElementById('modalOverlay').classList.add('open');
+      document.getElementById('userModal').classList.add('open');
+      document.getElementById('modalOverlay').onclick = closeUserModal;
+      renderUserForm(id);
+    }
+    function closeUserModal() {
+      document.getElementById('modalOverlay').classList.remove('open');
+      document.getElementById('userModal').classList.remove('open');
+    }
+
+    async function renderUserForm(id) {
+      let user = null;
+      if (id) {
+        const d = await api('/api/admin/users/' + id);
+        if (d.success) user = d.data || d.user;
+      }
+      document.getElementById('modalTitle').textContent = user ? 'Edit Member' : 'Add Team Member';
+      document.getElementById('modalBody').innerHTML = userFormHTML(user);
+    }
+
+    function userFormHTML(u) {
+      const v = u || {};
+      return `
+        <form class="task-form" onsubmit="submitUserForm(event)" id="userForm">
+          <input type="hidden" id="editUserId" value="${v._id || ''}" />
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Full Name <span class="req">*</span></label>
+              <input type="text" id="uName" value="${v.name || ''}" required placeholder="e.g. Rahul Sharma" />
+            </div>
+            <div class="form-group">
+              <label>Email <span class="req">*</span></label>
+              <input type="email" id="uEmail" value="${v.email || ''}" ${v._id ? 'readonly style="background:#f8fafc"' : 'required'}
+                     placeholder="rahul@mahattaart.com" />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Role</label>
+              <select id="uRole">
+                <option value="warehouse" ${(v.role||'warehouse')==='warehouse'?'selected':''}>Warehouse / IT Team</option>
+                <option value="admin"     ${v.role==='admin'?'selected':''}>Admin</option>
+                <option value="vendor"    ${v.role==='vendor'?'selected':''}>Vendor</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Phone</label>
+              <input type="text" id="uPhone" value="${v.phone || ''}" placeholder="+91 98765 43210" />
+            </div>
+          </div>
+
+          ${!v._id ? `
+            <div class="form-row">
+              <div class="form-group">
+                <label>Password <span class="req">*</span></label>
+                <input type="password" id="uPassword" required minlength="6"
+                       placeholder="At least 6 characters" />
+              </div>
+              <div class="form-group">
+                <label>Confirm Password <span class="req">*</span></label>
+                <input type="password" id="uConfirmPassword" required placeholder="Repeat password" />
+              </div>
+            </div>` : ''}
+
+          <div id="userFormError" class="alert alert-error" style="display:none"></div>
+
+          <div class="form-actions">
+            <button type="button" class="btn btn-secondary" onclick="closeUserModal()">Cancel</button>
+            <button type="submit" class="btn btn-primary" id="submitUserBtn">
+              ${u ? 'Save Changes' : 'Add Member'}
+            </button>
+          </div>
+        </form>`;
+    }
+
+    async function submitUserForm(e) {
+      e.preventDefault();
+      const btn = document.getElementById('submitUserBtn');
+      const err = document.getElementById('userFormError');
+      err.style.display = 'none';
+      btn.disabled = true;
+      btn.textContent = 'Saving…';
+
+      const id = document.getElementById('editUserId').value;
+
+      if (!id) {
+        const pw  = document.getElementById('uPassword').value;
+        const cpw = document.getElementById('uConfirmPassword').value;
+        if (pw !== cpw) {
+          err.textContent = 'Passwords do not match.';
+          err.style.display = 'block';
+          btn.disabled = false; btn.textContent = 'Add Member';
+          return;
+        }
+      }
+
+      const payload = {
+        name:  document.getElementById('uName').value.trim(),
+        role:  document.getElementById('uRole').value,
+        phone: document.getElementById('uPhone').value.trim(),
+      };
+      if (!id) {
+        payload.email    = document.getElementById('uEmail').value.trim();
+        payload.password = document.getElementById('uPassword').value;
+      }
+
+      const res = id
+        ? await api('/api/admin/users/' + id, 'PUT',  payload)
+        : await api('/api/admin/auth/register', 'POST', payload);
+
+      if (res.success) {
+        closeUserModal();
+        loadUsers();
+      } else {
+        err.textContent = res.message || 'Save failed';
+        err.style.display = 'block';
+        btn.disabled = false;
+        btn.textContent = id ? 'Save Changes' : 'Add Member';
+      }
+    }
+
+    async function resetPassword(id, name) {
+      const newPw = prompt(`Set new password for ${name}:`);
+      if (!newPw || newPw.length < 6) { if (newPw !== null) alert('Password must be at least 6 characters.'); return; }
+      const res = await api('/api/admin/users/' + id + '/reset-password', 'PATCH', { newPassword: newPw });
+      if (res.success) alert(`Password for ${name} has been reset.`);
+      else alert(res.message || 'Reset failed');
+    }
+
+    async function toggleActive(id, name, activate) {
+      const action = activate ? 'activate' : 'deactivate';
+      if (!confirm(`${action.charAt(0).toUpperCase() + action.slice(1)} ${name}?`)) return;
+      const res = await api('/api/admin/users/' + id, 'PUT', { isActive: activate });
+      if (res.success) loadUsers();
+      else alert(res.message || 'Update failed');
+    }
+
+    loadUsers();
+  </script>
+</body>
+</html>

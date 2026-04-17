@@ -840,3 +840,100 @@ input:focus, select:focus, textarea:focus {
 .skeleton-card { pointer-events: none; }
 .skel { background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%); background-size: 200% 100%; animation: shimmer 1.2s infinite; border-radius: 4px; }
 @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+/* ── React-specific overrides ── */
+body { display: block; }
+
+/* Login page (React version uses .login-page/.login-card/.login-logo) */
+.login-page {
+  display: flex; align-items: center; justify-content: center;
+  background: var(--primary); min-height: 100vh;
+}
+.login-card {
+  background: var(--card); border-radius: 16px; padding: 40px;
+  width: 100%; max-width: 400px; box-shadow: 0 8px 32px rgba(0,0,0,.25);
+}
+.login-logo { display: flex; align-items: center; gap: 14px; margin-bottom: 28px; }
+
+/* Chart title */
+.chart-title { font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing:.5px; margin-bottom: 12px; }
+
+/* Status inline select */
+.status-select {
+  border: 1px solid var(--border); border-radius: 6px;
+  padding: 4px 8px; font-size: 12px; font-weight: 600;
+  background: var(--card); cursor: pointer;
+}
+
+/* Icon delete button */
+.btn-icon { background: none; border: none; cursor: pointer; font-size: 15px; opacity:.5; padding: 2px 4px; border-radius: 4px; }
+.btn-icon:hover { opacity:1; background: #fee2e2; }
+
+/* Alert success */
+.alert-success { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; padding: 12px 16px; border-radius: 8px; font-size: 14px; }
+
+/* Progress bar */
+.progress-bar-wrap { background: var(--border); border-radius: 4px; height: 6px; overflow: hidden; }
+.progress-bar { height: 100%; border-radius: 4px; transition: width .3s; }
+
+/* Form rows */
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.form-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+
+/* Settings row */
+.settings-row { display: flex; gap: 8px; align-items: center; }
+.settings-field { margin-top: 12px; }
+.settings-field label { font-size: 13px; font-weight: 500; display: block; margin-bottom: 6px; }
+
+/* Kanban quick-add */
+.quick-add { display: flex; gap: 4px; margin-top: 8px; }
+.quick-add-input { flex:1; border: 1px dashed var(--border); border-radius: 6px; padding: 6px 8px; font-size: 12px; background: transparent; }
+.quick-add-input:focus { outline: none; border-color: var(--accent); }
+.quick-add-btn { background: none; border: 1px solid var(--border); border-radius: 6px; padding: 4px 8px; cursor: pointer; font-size: 14px; }
+.quick-add-btn:hover { background: var(--bg); }
+
+/* NavLink — react-router active class */
+a.nav-item { text-decoration: none; }
+
+/* ── Task Detail Drawer ── */
+.drawer-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.35);
+  z-index: 200; display: flex; justify-content: flex-end;
+}
+.drawer {
+  width: 520px; max-width: 100vw;
+  background: var(--card); height: 100%; overflow: hidden;
+  display: flex; flex-direction: column;
+  box-shadow: -4px 0 24px rgba(0,0,0,.15);
+  position: relative;
+  animation: slideIn .2s ease;
+}
+.drawer-close {
+  position: absolute; top: 12px; right: 14px; z-index: 1;
+  background: none; border: none; font-size: 18px;
+  color: var(--muted); cursor: pointer; padding: 4px 8px;
+  border-radius: 6px; line-height: 1;
+}
+.drawer-close:hover { background: var(--border); color: var(--text); }
+@keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+
+/* ── Toast notifications ── */
+@keyframes toastIn { from { transform: translateY(8px); opacity:0; } to { transform: translateY(0); opacity:1; } }
+
+/* ── Mobile sidebar ── */
+.sidebar-toggle {
+  display: none; position: fixed; top: 14px; left: 14px; z-index: 150;
+  background: var(--primary); border: none; color: #fff;
+  width: 38px; height: 38px; border-radius: 8px;
+  font-size: 18px; cursor: pointer; align-items: center; justify-content: center;
+}
+@media (max-width: 768px) {
+  .sidebar { transform: translateX(-100%); transition: transform .25s ease; }
+  .sidebar.open { transform: translateX(0); }
+  .sidebar-toggle { display: flex; }
+  .main-content { margin-left: 0 !important; padding: 16px; padding-top: 60px; }
+  .sidebar-overlay {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 99;
+  }
+  .sidebar-overlay.open { display: block; }
+}

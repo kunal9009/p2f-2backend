@@ -3,6 +3,7 @@ import { api } from '../api';
 import Modal from '../components/Modal';
 import TaskForm from '../components/TaskForm';
 import TaskDetail from '../components/TaskDetail';
+import EmptyState from '../components/EmptyState';
 
 const STATUS_ORDER = ['in_progress','todo','testing','on_hold','completed','cancelled'];
 const SCOLOR = { todo:'#64748b', in_progress:'#f59e0b', testing:'#8b5cf6', on_hold:'#94a3b8', completed:'#10b981', cancelled:'#ef4444' };
@@ -61,9 +62,11 @@ export default function MyTasks() {
       {loading ? (
         <div style={{ textAlign:'center', padding:40, color:'#64748b' }}>Loading…</div>
       ) : total === 0 ? (
-        <div className="card" style={{ padding:48, textAlign:'center', color:'#64748b' }}>
-          🎉 No tasks assigned to you right now.
-        </div>
+        <EmptyState
+          icon="🎉"
+          title="You're all caught up!"
+          message="No tasks are currently assigned to you."
+        />
       ) : (
         STATUS_ORDER.map(status => {
           const ts = groups[status] || [];

@@ -937,3 +937,40 @@ a.nav-item { text-decoration: none; }
   }
   .sidebar-overlay.open { display: block; }
 }
+
+/* ── Dark Mode ── */
+:root[data-theme="dark"] {
+  --bg:     #0f172a;
+  --card:   #1e293b;
+  --border: #334155;
+  --text:   #e2e8f0;
+  --muted:  #94a3b8;
+  --shadow: 0 1px 4px rgba(0,0,0,.3);
+}
+
+:root[data-theme="dark"] body         { background: var(--bg); color: var(--text); }
+:root[data-theme="dark"] .data-table th { background: #263248; }
+:root[data-theme="dark"] .data-table tr:hover td { background: #1e2d40; }
+:root[data-theme="dark"] input,
+:root[data-theme="dark"] select,
+:root[data-theme="dark"] textarea {
+  background: #1e293b; color: var(--text); border-color: var(--border);
+}
+:root[data-theme="dark"] .status-select { background: #1e293b; }
+:root[data-theme="dark"] .quick-add-input { color: var(--text); }
+:root[data-theme="dark"] .kanban-card  { background: #263248; }
+:root[data-theme="dark"] .result-card  { background: var(--card); }
+:root[data-theme="dark"] .result-snippet { background: #263248; }
+:root[data-theme="dark"] .notif-panel  { background: #1e293b; border-color: var(--border); }
+:root[data-theme="dark"] .modal        { background: #1e293b; }
+:root[data-theme="dark"] .drawer       { background: #1e293b; }
+:root[data-theme="dark"] .filter-chip  { background: #263248; color: var(--text); border-color: var(--border); }
+:root[data-theme="dark"] .login-card   { background: #1e293b; }
+:root[data-theme="dark"] .skel         { background: linear-gradient(90deg, #263248 25%, #1e293b 50%, #263248 75%); background-size: 200% 100%; }
+
+/* Ctrl+K badge in nav */
+.nav-shortcut {
+  margin-left: auto; font-size: 10px; color: rgba(255,255,255,.35);
+  background: rgba(255,255,255,.08); border-radius: 4px; padding: 1px 5px;
+  letter-spacing: .3px; font-family: monospace;
+}

@@ -6,6 +6,7 @@ import Modal from '../components/Modal';
 import TaskForm from '../components/TaskForm';
 import TaskDetail from '../components/TaskDetail';
 import ConfirmDialog from '../components/ConfirmDialog';
+import EmptyState from '../components/EmptyState';
 
 const STATUSES   = ['todo','in_progress','testing','on_hold','completed','cancelled'];
 const PRIORITIES = ['critical','high','medium','low'];
@@ -18,6 +19,7 @@ export default function Tasks() {
 
   const { toast } = useToast();
   const [tasks,    setTasks]    = useState([]);
+  const [users,    setUsers]    = useState([]);
   const [total,    setTotal]    = useState(0);
   const [page,     setPage]     = useState(1);
   const [loading,  setLoading]  = useState(true);
@@ -27,13 +29,14 @@ export default function Tasks() {
 
   // Filters
   const [filters, setFilters] = useState({
-    search:    searchParams.get('search')   || '',
-    status:    searchParams.get('status')   || '',
-    priority:  searchParams.get('priority') || '',
-    project:   searchParams.get('project')  || '',
-    tag:       searchParams.get('tag')      || '',
-    overdue:   searchParams.get('overdue')  === 'true',
-    dueToday:  searchParams.get('dueToday') === 'true',
+    search:     searchParams.get('search')     || '',
+    status:     searchParams.get('status')     || '',
+    priority:   searchParams.get('priority')   || '',
+    project:    searchParams.get('project')    || '',
+    tag:        searchParams.get('tag')        || '',
+    assignedTo: searchParams.get('assignedTo') || '',
+    overdue:    searchParams.get('overdue')    === 'true',
+    dueToday:   searchParams.get('dueToday')   === 'true',
   });
 
   const LIMIT = 20;
@@ -44,8 +47,9 @@ export default function Tasks() {
     if (f.status)   q.set('status', f.status);
     if (f.priority) q.set('priority', f.priority);
     if (f.project)  q.set('project', f.project);
-    if (f.tag)      q.set('tag', f.tag);
-    if (f.overdue)  q.set('overdue', 'true');
+    if (f.tag)        q.set('tag', f.tag);
+    if (f.assignedTo) q.set('assignedTo', f.assignedTo);
+    if (f.overdue)    q.set('overdue', 'true');
     if (f.dueToday) q.set('dueToday', 'true');
     q.set('page', p); q.set('limit', LIMIT);
     return q.toString();
@@ -60,6 +64,13 @@ export default function Tasks() {
 
   useEffect(() => { load(); }, [load]);
 
+  // Load users for assignee filter
+  useEffect(() => {
+    api('/api/admin/users').then(res => {
+      if (res.success) setUsers(res.data || res.users || []);
+    });
+  }, []);
+
   // Open task from URL param
   useEffect(() => {
     const id = searchParams.get('id');
@@ -73,11 +84,11 @@ export default function Tasks() {
   }
 
   function clearFilters() {
-    setFilters({ search:'', status:'', priority:'', project:'', overdue:false, dueToday:false });
+    setFilters({ search:'', status:'', priority:'', project:'', tag:'', assignedTo:'', overdue:false, dueToday:false });
     setPage(1);
   }
 
-  const hasFilters = filters.search || filters.status || filters.priority || filters.project || filters.tag || filters.overdue || filters.dueToday;
+  const hasFilters = filters.search || filters.status || filters.priority || filters.project || filters.tag || filters.assignedTo || filters.overdue || filters.dueToday;
 
   async function changeStatus(id, newStatus) {
     const res = await api('/api/admin/tasks/' + id + '/status', 'PATCH', { status: newStatus });
@@ -161,6 +172,10 @@ export default function Tasks() {
           onChange={e => setFilter('project', e.target.value)} style={{ width:110 }} />
         <input className="input-sm" placeholder="Tag…" value={filters.tag}
           onChange={e => setFilter('tag', e.target.value)} style={{ width:90 }} />
+        <select className="input-sm" value={filters.assignedTo} onChange={e => setFilter('assignedTo', e.target.value)} style={{ width:130 }}>
+          <option value="">All members</option>
+          {users.map(u => <option key={u._id||u.id} value={u._id||u.id}>{u.name}</option>)}
+        </select>
         <label className="input-sm" style={{ display:'flex', alignItems:'center', gap:4, padding:'0 8px', cursor:'pointer' }}>
           <input type="checkbox" checked={filters.overdue} onChange={e => setFilter('overdue', e.target.checked)} />
           Overdue
@@ -193,7 +208,12 @@ export default function Tasks() {
         {loading ? (
           <div style={{ padding:32, textAlign:'center', color:'#64748b' }}>Loading…</div>
         ) : tasks.length === 0 ? (
-          <div style={{ padding:48, textAlign:'center', color:'#64748b' }}>No tasks found.</div>
+          <EmptyState
+            icon={hasFilters ? '🔍' : '📋'}
+            title={hasFilters ? 'No tasks match your filters' : 'No tasks yet'}
+            message={hasFilters ? 'Try adjusting or clearing your filters.' : 'Create your first task to get started.'}
+            action={!hasFilters && <button className="btn btn-primary" onClick={() => setModal('new')}>+ Create Task</button>}
+          />
         ) : (
           <table className="data-table">
             <thead>

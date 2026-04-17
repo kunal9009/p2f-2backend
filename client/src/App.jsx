@@ -18,7 +18,10 @@ import Settings from './pages/Settings';
 
 function ProtectedRoute({ children }) {
   const { token } = useAuth();
-  return token ? children : <Navigate to="/login" replace />;
+  if (!token) {
+  return <div>Loading...</div>; // 🔥 redirect mat karo
+}
+return children;
 }
 
 function AdminRoute({ children }) {

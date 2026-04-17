@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { api } from '../api';
 
 const NAV = [
@@ -17,6 +18,7 @@ const NAV = [
 
 export default function Sidebar({ mobileOpen, onClose }) {
   const { user, isAdmin, logout } = useAuth();
+  const { dark, toggle: toggleTheme } = useTheme();
   const navigate = useNavigate();
   const [notifCount, setNotifCount] = useState(0);
   const [notifData,  setNotifData]  = useState(null);
@@ -119,6 +121,7 @@ export default function Sidebar({ mobileOpen, onClose }) {
             <span className="nav-icon">{n.icon}</span>
             <span>{n.label}</span>
             {n.notif && notifCount > 0 && <span className="nav-badge">{notifCount}</span>}
+            {n.id === 'search' && <span className="nav-shortcut">^K</span>}
           </NavLink>
         ))}
       </nav>
@@ -130,6 +133,15 @@ export default function Sidebar({ mobileOpen, onClose }) {
             <div className="user-name">{user?.name || 'User'}</div>
             <div className="user-role">{user?.role || ''}</div>
           </div>
+        </div>
+        <div style={{ display:'flex', gap:6, marginBottom:8 }}>
+          <button
+            onClick={toggleTheme}
+            title={dark ? 'Switch to light mode' : 'Switch to dark mode'}
+            style={{ flex:1, padding:'6px 0', background:'rgba(255,255,255,.1)', border:'none', borderRadius:6, color:'rgba(255,255,255,.8)', cursor:'pointer', fontSize:14 }}
+          >
+            {dark ? '☀️ Light' : '🌙 Dark'}
+          </button>
         </div>
         <button className="btn-logout" onClick={() => { logout(); navigate('/login'); }}>Sign Out</button>
       </div>

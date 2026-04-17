@@ -26,7 +26,7 @@ export default function Reports() {
   if (loading) return <div style={{ padding:40, textAlign:'center', color:'#64748b' }}>Loading…</div>;
   if (!data)   return <div className="alert alert-error">Failed to load reports.</div>;
 
-  const { summary, statusBreakdown=[], priorityBreakdown=[], assigneeBreakdown=[], weeklyActivity=[] } = data;
+  const { summary, statusBreakdown=[], priorityBreakdown=[], assigneeBreakdown=[], weeklyActivity=[], projectBreakdown=[] } = data;
 
   const statusChart = {
     labels: statusBreakdown.map(s => s.label || s.status.replace('_',' ')),
@@ -119,6 +119,33 @@ export default function Reports() {
           </div>
         </div>
       </div>
+
+      {/* Project breakdown */}
+      {projectBreakdown.length > 0 && (
+        <div className="card" style={{ marginTop:24 }}>
+          <div className="chart-title" style={{ marginBottom:12 }}>Tasks by Project</div>
+          <div style={{ height: Math.max(200, projectBreakdown.length * 36) }}>
+            <Bar
+              data={{
+                labels: projectBreakdown.map(p => p.project || 'Unassigned'),
+                datasets: [{
+                  label: 'Tasks',
+                  data: projectBreakdown.map(p => p.count),
+                  backgroundColor: '#8b5cf6',
+                  borderRadius: 4,
+                }],
+              }}
+              options={{
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { x: { beginAtZero: true } },
+              }}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Performance table */}
       {assigneeBreakdown.length > 0 && (

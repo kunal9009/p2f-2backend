@@ -1,7 +1,9 @@
-import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ToastProvider } from './contexts/ToastContext';
+import { ThemeProvider } from './contexts/ThemeContext';
+import ErrorBoundary from './components/ErrorBoundary';
 import Layout from './components/Layout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
@@ -26,28 +28,49 @@ function AdminRoute({ children }) {
   return children;
 }
 
+/* Ctrl+K → navigate to /search */
+function GlobalShortcuts() {
+  const navigate = useNavigate();
+  useEffect(() => {
+    function onKey(e) {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        navigate('/search');
+      }
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [navigate]);
+  return null;
+}
+
 export default function App() {
   return (
-    <AuthProvider>
-      <ToastProvider>
-      <BrowserRouter basename="/app">
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          <Route element={<Layout />}>
-            <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-            <Route path="/kanban"    element={<ProtectedRoute><Kanban /></ProtectedRoute>} />
-            <Route path="/tasks"     element={<ProtectedRoute><Tasks /></ProtectedRoute>} />
-            <Route path="/my-tasks"  element={<ProtectedRoute><MyTasks /></ProtectedRoute>} />
-            <Route path="/search"    element={<ProtectedRoute><Search /></ProtectedRoute>} />
-            <Route path="/team"      element={<ProtectedRoute><Team /></ProtectedRoute>} />
-            <Route path="/reports"   element={<ProtectedRoute><Reports /></ProtectedRoute>} />
-            <Route path="/settings"  element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-            <Route path="/users"     element={<AdminRoute><Users /></AdminRoute>} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
-      </ToastProvider>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <ToastProvider>
+          <BrowserRouter basename="/app">
+            <GlobalShortcuts />
+            <ErrorBoundary>
+              <Routes>
+                <Route path="/login" element={<Login />} />
+                <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                <Route element={<Layout />}>
+                  <Route path="/dashboard" element={<ProtectedRoute><ErrorBoundary><Dashboard /></ErrorBoundary></ProtectedRoute>} />
+                  <Route path="/kanban"    element={<ProtectedRoute><ErrorBoundary><Kanban /></ErrorBoundary></ProtectedRoute>} />
+                  <Route path="/tasks"     element={<ProtectedRoute><ErrorBoundary><Tasks /></ErrorBoundary></ProtectedRoute>} />
+                  <Route path="/my-tasks"  element={<ProtectedRoute><ErrorBoundary><MyTasks /></ErrorBoundary></ProtectedRoute>} />
+                  <Route path="/search"    element={<ProtectedRoute><ErrorBoundary><Search /></ErrorBoundary></ProtectedRoute>} />
+                  <Route path="/team"      element={<ProtectedRoute><ErrorBoundary><Team /></ErrorBoundary></ProtectedRoute>} />
+                  <Route path="/reports"   element={<ProtectedRoute><ErrorBoundary><Reports /></ErrorBoundary></ProtectedRoute>} />
+                  <Route path="/settings"  element={<ProtectedRoute><ErrorBoundary><Settings /></ErrorBoundary></ProtectedRoute>} />
+                  <Route path="/users"     element={<AdminRoute><ErrorBoundary><Users /></ErrorBoundary></AdminRoute>} />
+                </Route>
+              </Routes>
+            </ErrorBoundary>
+          </BrowserRouter>
+        </ToastProvider>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }

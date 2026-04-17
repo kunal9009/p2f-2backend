@@ -3,6 +3,7 @@ import { api } from '../api';
 import Modal from '../components/Modal';
 import TaskForm from '../components/TaskForm';
 import TaskDetail from '../components/TaskDetail';
+import EmptyState from '../components/EmptyState';
 
 const COLS = [
   { status: 'todo',        label: 'To Do',       color: '#64748b' },
@@ -86,6 +87,11 @@ export default function Kanban() {
                 <span className="kanban-col-count">{(columns[col.status] || []).length}</span>
               </div>
 
+              {(columns[col.status] || []).length === 0 && (
+                <div style={{ padding:'16px 0', textAlign:'center', color:'#94a3b8', fontSize:13 }}>
+                  Drop tasks here
+                </div>
+              )}
               {(columns[col.status] || []).map(task => (
                 <div
                   key={task._id}

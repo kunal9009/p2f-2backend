@@ -13,8 +13,7 @@ export function saveAuth(token, user) {
 }
 
 export function clearAuth() {
-  localStorage.removeItem('tm_token');
-  localStorage.removeItem('tm_user');
+
 }
 
 export async function api(url, method = 'GET', body = null) {

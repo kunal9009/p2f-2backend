@@ -26,7 +26,7 @@ const adminPricingRoutes = require('./src/routes/admin/pricingRoutes');
 const adminReportRoutes = require('./src/routes/admin/reportRoutes');
 const adminTaskRoutes  = require('./src/routes/admin/taskRoutes');
 
-// ─── VENDOR (VIKAS) ROUTES ───
+// ─── VENDOR ROUTES ───
 const vendorAuthRoutes = require('./src/routes/vendor/authRoutes');
 const vendorOrderRoutes = require('./src/routes/vendor/orderRoutes');
 const vendorShipmentRoutes = require('./src/routes/vendor/shipmentRoutes');
@@ -51,23 +51,26 @@ app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// General rate limit on all /api routes
+// Rate limiter
 app.use('/api', apiLimiter);
 
-// Serve uploaded files
+// Static folders
 app.use('/uploads', express.static(path.join(__dirname, uploadDir)));
 
-// Serve the task-manager frontend (vanilla)
+// Task UI (simple)
 app.use('/tasks-ui', express.static(path.join(__dirname, 'public')));
 app.get('/tasks-ui', (req, res) => res.redirect('/tasks-ui/index.html'));
 
-// Serve the React task-manager frontend
+// React app
 const reactDist = path.join(__dirname, 'client-dist');
 app.use('/app', express.static(reactDist));
 app.get('/app/*', (req, res) => {
   const indexPath = path.join(reactDist, 'index.html');
   res.sendFile(indexPath, err => {
-    if (err) res.status(404).json({ success: false, message: 'React build not found. Run: cd client && npm run build' });
+    if (err) res.status(404).json({
+      success: false,
+      message: 'React build not found. Run: cd client && npm run build'
+    });
   });
 });
 
@@ -76,10 +79,15 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// ─── PUBLIC API (/api/public/*) — no auth required ───
+// ✅ ROOT ROUTE (FIX ADDED)
+app.get('/', (req, res) => {
+  res.send('MahattaART Backend is running ✅');
+});
+
+// ─── PUBLIC API ───
 app.use('/api/public', publicTrackingRoutes);
 
-// ─── ADMIN API (/api/admin/*) ───
+// ─── ADMIN API ───
 app.use('/api/admin/auth', adminAuthRoutes);
 app.use('/api/admin/dashboard', adminDashboardRoutes);
 app.use('/api/admin/products', adminProductRoutes);
@@ -90,9 +98,9 @@ app.use('/api/admin/invoices', adminInvoiceRoutes);
 app.use('/api/admin/users', adminUserRoutes);
 app.use('/api/admin/pricing', adminPricingRoutes);
 app.use('/api/admin/reports', adminReportRoutes);
-app.use('/api/admin/tasks',  adminTaskRoutes);
+app.use('/api/admin/tasks', adminTaskRoutes);
 
-// ─── VENDOR API (/api/vendor/*) ───
+// ─── VENDOR API ───
 app.use('/api/vendor/auth', vendorAuthRoutes);
 app.use('/api/vendor/orders', vendorOrderRoutes);
 app.use('/api/vendor/shipments', vendorShipmentRoutes);
@@ -100,17 +108,19 @@ app.use('/api/vendor/products', vendorProductRoutes);
 
 // ─── 404 HANDLER ───
 app.use((req, res) => {
-  res.status(404).json({ success: false, message: `Route ${req.method} ${req.path} not found` });
+  res.status(404).json({
+    success: false,
+    message: `Route ${req.method} ${req.path} not found`
+  });
 });
 
-// ─── GLOBAL ERROR HANDLER ───
+// ─── ERROR HANDLER ───
 app.use((err, req, res, next) => {
   console.error(err.stack);
   const status = err.statusCode || 500;
   res.status(status).json({
     success: false,
     message: err.message || 'Internal server error',
-    ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
   });
 });
 
@@ -121,10 +131,7 @@ connectDB()
   .then(() => {
     startScheduler();
     app.listen(PORT, () => {
-      console.log(`MahattaART backend running on port ${PORT}`);
-      console.log(`  Admin API : http://localhost:${PORT}/api/admin`);
-      console.log(`  Vendor API: http://localhost:${PORT}/api/vendor`);
-      console.log(`  Task API  : http://localhost:${PORT}/api/admin/tasks`);
+      console.log(`Server running on port ${PORT}`);
     });
   })
   .catch((err) => {

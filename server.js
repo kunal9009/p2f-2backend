@@ -1,4 +1,5 @@
 require('dotenv').config();
+
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -34,6 +35,9 @@ const vendorProductRoutes = require('./src/routes/vendor/productRoutes');
 
 const app = express();
 
+// ─── DEBUG ENV CHECK ───
+console.log("ENV CHECK → MONGO_URI:", process.env.MONGO_URI);
+
 // ─── ENSURE UPLOAD DIRECTORY EXISTS ───
 const uploadDir = process.env.UPLOAD_DIR || 'uploads';
 if (!fs.existsSync(uploadDir)) {
@@ -51,17 +55,16 @@ app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Rate limiter
 app.use('/api', apiLimiter);
 
-// Static folders
+// ─── STATIC ───
 app.use('/uploads', express.static(path.join(__dirname, uploadDir)));
 
-// Task UI (simple)
+// Vanilla UI
 app.use('/tasks-ui', express.static(path.join(__dirname, 'public')));
 app.get('/tasks-ui', (req, res) => res.redirect('/tasks-ui/index.html'));
 
-// React app
+// React UI
 const reactDist = path.join(__dirname, 'client-dist');
 app.use('/app', express.static(reactDist));
 app.get('/app/*', (req, res) => {
@@ -69,7 +72,7 @@ app.get('/app/*', (req, res) => {
   res.sendFile(indexPath, err => {
     if (err) res.status(404).json({
       success: false,
-      message: 'React build not found. Run: cd client && npm run build'
+      message: 'React build not found'
     });
   });
 });
@@ -79,9 +82,40 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// ✅ ROOT ROUTE (FIX ADDED)
+// ✅ ROOT CHECK
 app.get('/', (req, res) => {
   res.send('MahattaART Backend is running ✅');
+});
+
+// ✅ ADMIN CREATE ROUTE (IMPORTANT FIX)
+app.get('/create-admin', async (req, res) => {
+  try {
+    const User = require('./src/models/User');
+    const bcrypt = require('bcryptjs');
+
+    const email = 'admin@mahattaart.com';
+    const password = 'admin@1234';
+
+    const existing = await User.findOne({ email });
+    if (existing) {
+      return res.send('Admin already exists ✅');
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const user = new User({
+      name: 'Admin',
+      email: email,
+      password: hashedPassword,
+      role: 'admin'
+    });
+
+    await user.save();
+
+    res.send('Admin created successfully ✅');
+  } catch (err) {
+    res.send('Error: ' + err.message);
+  }
 });
 
 // ─── PUBLIC API ───
@@ -106,7 +140,7 @@ app.use('/api/vendor/orders', vendorOrderRoutes);
 app.use('/api/vendor/shipments', vendorShipmentRoutes);
 app.use('/api/vendor/products', vendorProductRoutes);
 
-// ─── 404 HANDLER ───
+// ─── 404 ───
 app.use((req, res) => {
   res.status(404).json({
     success: false,
@@ -117,8 +151,7 @@ app.use((req, res) => {
 // ─── ERROR HANDLER ───
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  const status = err.statusCode || 500;
-  res.status(status).json({
+  res.status(err.statusCode || 500).json({
     success: false,
     message: err.message || 'Internal server error',
   });
@@ -131,7 +164,7 @@ connectDB()
   .then(() => {
     startScheduler();
     app.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
+      console.log(`MahattaART backend running on port ${PORT}`);
     });
   })
   .catch((err) => {

@@ -13,11 +13,9 @@ export function AuthProvider({ children }) {
     setUser(newUser);
   }
 
-  function logout() {
-    clearAuth();
-    setToken(null);
-    setUser({});
-  }
+function logout() {
+  console.log("Logout blocked"); // 🔥 disable logout
+}
 
   return (
     <AuthContext.Provider value={{ token, user, login, logout, isAdmin: user?.role === 'admin' }}>

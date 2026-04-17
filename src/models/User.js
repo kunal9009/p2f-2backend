@@ -1,93 +1,55 @@
-const User = require('../../models/User');
-const jwt = require('jsonwebtoken');
+const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
+const { ROLES } = require('../config/constants');
 
-// LOGIN
-exports.login = async (req, res) => {
-  try {
-    const { email, password } = req.body;
+const userSchema = new mongoose.Schema({
+  name: { type: String, required: true, trim: true },
 
-    // 🔴 IMPORTANT FIX: include password
-    const user = await User.findOne({ email }).select('+password');
+  email: { 
+    type: String, 
+    required: true, 
+    unique: true, 
+    lowercase: true, 
+    trim: true 
+  },
 
-    if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid credentials'
-      });
-    }
+  password: { 
+    type: String, 
+    required: true, 
+    select: false   // 🔴 important (hidden by default)
+  },
 
-    // use model method
-    const isMatch = await user.comparePassword(password);
+  phone: { type: String, trim: true },
 
-    if (!isMatch) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid credentials'
-      });
-    }
+  role: {
+    type: String,
+    enum: Object.values(ROLES),
+    default: ROLES.WAREHOUSE,
+  },
 
-    const token = jwt.sign(
-      { id: user._id, role: user.role },
-      process.env.JWT_SECRET || 'secret123',
-      { expiresIn: '1d' }
-    );
+  vendorId: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: 'Vendor' 
+  },
 
-    res.json({
-      success: true,
-      token,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role
-      }
-    });
+  isActive: { type: Boolean, default: true },
 
-  } catch (err) {
-    res.status(500).json({
-      success: false,
-      message: err.message
-    });
-  }
+}, { timestamps: true });
+
+
+// 🔐 Hash password before save
+userSchema.pre('save', async function (next) {
+  if (!this.isModified('password')) return next();
+
+  this.password = await bcrypt.hash(this.password, 10);
+  next();
+});
+
+
+// 🔐 Compare password
+userSchema.methods.comparePassword = async function (candidatePassword) {
+  return await bcrypt.compare(candidatePassword, this.password);
 };
 
-// GET ME
-exports.getMe = async (req, res) => {
-  res.json({
-    success: true,
-    user: req.user
-  });
-};
 
-// REGISTER
-exports.register = async (req, res) => {
-  try {
-    const { name, email, password, role } = req.body;
-
-    const existing = await User.findOne({ email });
-    if (existing) {
-      return res.status(400).json({
-        success: false,
-        message: 'User already exists'
-      });
-    }
-
-    const user = await User.create({
-      name,
-      email,
-      password,
-      role: role || 'admin'
-    });
-
-    res.json({
-      success: true,
-      message: 'User created successfully'
-    });
-
-  } catch (err) {
-    res.status(500).json({
-      success: false,
-      message: err.message
-    });
-  }
-};
+module.exports = mongoose.model('User', userSchema);

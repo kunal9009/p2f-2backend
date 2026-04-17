@@ -7,20 +7,27 @@ const PCOLOR = { critical:'#ef4444', high:'#f97316', medium:'#3b82f6', low:'#10b
 const SCOLORS = ['#3b82f6','#f59e0b','#8b5cf6','#10b981','#6b7280','#ef4444'];
 
 export default function Dashboard() {
-  const [dash,     setDash]     = useState(null);
-  const [activity, setActivity] = useState([]);
-  const [loading,  setLoading]  = useState(true);
+  const [dash,        setDash]        = useState(null);
+  const [activity,    setActivity]    = useState([]);
+  const [loading,     setLoading]     = useState(true);
+  const [lastRefresh, setLastRefresh] = useState(null);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    Promise.all([
+  async function loadAll() {
+    const [d, a] = await Promise.all([
       api('/api/admin/tasks/dashboard'),
       api('/api/admin/tasks/activity?limit=20'),
-    ]).then(([d, a]) => {
-      if (d.success) setDash(d.data);
-      if (a.success) setActivity(a.data || []);
-      setLoading(false);
-    });
+    ]);
+    if (d.success) setDash(d.data);
+    if (a.success) setActivity(a.data || []);
+    setLastRefresh(new Date());
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    loadAll();
+    const t = setInterval(loadAll, 60_000); // refresh every 60s
+    return () => clearInterval(t);
   }, []);
 
   if (loading) return <Skeleton />;
@@ -87,7 +94,11 @@ export default function Dashboard() {
           <h2>Dashboard</h2>
           <p className="text-muted">Overview of all task activity</p>
         </div>
-        <button className="btn btn-primary" onClick={() => navigate('/tasks?new=1')}>+ New Task</button>
+        <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+          {lastRefresh && <span style={{ fontSize:11, color:'var(--muted)' }}>Updated {lastRefresh.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})}</span>}
+          <button className="btn btn-secondary" onClick={loadAll} title="Refresh">↻ Refresh</button>
+          <button className="btn btn-primary" onClick={() => navigate('/tasks?new=1')}>+ New Task</button>
+        </div>
       </div>
 
       {summary.overdue > 0 && (

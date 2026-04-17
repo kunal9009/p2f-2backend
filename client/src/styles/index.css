@@ -974,3 +974,31 @@ a.nav-item { text-decoration: none; }
   background: rgba(255,255,255,.08); border-radius: 4px; padding: 1px 5px;
   letter-spacing: .3px; font-family: monospace;
 }
+
+/* ── Sticky filter bar ── */
+.filter-bar {
+  position: sticky; top: 0; z-index: 10;
+  background: var(--bg);
+  padding-bottom: 2px;
+}
+
+/* ── Sortable table headers ── */
+.data-table th[style*="cursor:pointer"]:hover {
+  background: #eef2ff;
+}
+:root[data-theme="dark"] .data-table th[style*="cursor:pointer"]:hover {
+  background: #1e2d40;
+}
+
+/* ── Inline priority select (same style as status) ── */
+.priority-select {
+  border: 1px solid var(--border); border-radius: 6px;
+  padding: 4px 8px; font-size: 12px; font-weight: 600;
+  background: var(--card); cursor: pointer;
+}
+
+/* ── Tags in table cells ── */
+.tag-inline {
+  font-size: 10px; background: #ede9fe; color: #7c3aed;
+  border-radius: 4px; padding: 0 4px;
+}

@@ -57,6 +57,26 @@ export default function TaskDetail({ taskId, onClose, onUpdated }) {
     });
   }
 
+  async function duplicateTask() {
+    const payload = {
+      title:          task.title + ' (copy)',
+      description:    task.description,
+      priority:       task.priority,
+      project:        task.project,
+      tags:           task.tags,
+      assignedTo:     task.assignedTo,
+      estimatedHours: task.estimatedHours,
+      status:         'todo',
+    };
+    const res = await api('/api/admin/tasks', 'POST', payload);
+    if (res.success) {
+      toast('Task duplicated — ' + res.data.taskId, 'success');
+      onUpdated && onUpdated();
+    } else {
+      toast(res.message || 'Duplication failed', 'error');
+    }
+  }
+
   function deleteTask() {
     setConfirm({
       message: 'Permanently delete this task? This cannot be undone.',
@@ -115,9 +135,10 @@ export default function TaskDetail({ taskId, onClose, onUpdated }) {
             </div>
             <h3 style={{ margin:0, fontSize:18, lineHeight:1.3 }}>{task.title}</h3>
           </div>
-          <div style={{ display:'flex', gap:6, flexShrink:0 }}>
+          <div style={{ display:'flex', gap:6, flexShrink:0, flexWrap:'wrap' }}>
             <button className="btn btn-secondary btn-sm" onClick={() => setEditing(true)}>✏️ Edit</button>
-            {isAdmin && <button className="btn btn-sm" style={{ background:'#fee2e2', color:'#991b1b' }} onClick={deleteTask}>🗑</button>}
+            <button className="btn btn-secondary btn-sm" onClick={duplicateTask} title="Duplicate task">⧉</button>
+            {isAdmin && <button className="btn btn-sm" style={{ background:'#fee2e2', color:'#991b1b' }} onClick={deleteTask} title="Delete task">🗑</button>}
           </div>
         </div>
 

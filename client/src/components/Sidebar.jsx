@@ -28,7 +28,11 @@ export default function Sidebar({ mobileOpen, onClose }) {
   const panelRef = useRef(null);
   const bellRef  = useRef(null);
 
-  useEffect(() => { loadCount(); }, []);
+  useEffect(() => {
+    loadCount();
+    const t = setInterval(loadCount, 2 * 60 * 1000); // refresh every 2 min
+    return () => clearInterval(t);
+  }, []);
 
   useEffect(() => {
     function onOutside(e) {
@@ -60,7 +64,9 @@ export default function Sidebar({ mobileOpen, onClose }) {
   async function togglePanel() {
     if (panelOpen) { setPanelOpen(false); return; }
     setPanelOpen(true);
-    if (!notifData) { setLoading(true); await loadCount(); setLoading(false); }
+    setLoading(true);
+    await loadCount();
+    setLoading(false);
   }
 
   const visible = NAV.filter(n => !n.adminOnly || isAdmin);

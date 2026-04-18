@@ -5,7 +5,7 @@ import { useToast } from '../contexts/ToastContext';
 const STATUSES   = ['todo','in_progress','testing','on_hold','completed','cancelled'];
 const PRIORITIES = ['critical','high','medium','low'];
 
-export default function TaskForm({ taskId, defaultStatus, onClose, onSaved }) {
+export default function TaskForm({ taskId, defaultStatus, defaultDueDate, onClose, onSaved }) {
   const { toast }             = useToast();
   const [users,   setUsers]   = useState([]);
   const [loading, setLoading] = useState(true);
@@ -13,8 +13,9 @@ export default function TaskForm({ taskId, defaultStatus, onClose, onSaved }) {
   const [error,   setError]   = useState('');
   const [form, setForm] = useState({
     title: '', description: '', status: defaultStatus || 'todo',
-    priority: 'medium', project: '', dueDate: '', reminderDate: '',
+    priority: 'medium', project: '', dueDate: defaultDueDate || '', reminderDate: '',
     tags: '', assignedTo: [], estimatedHours: '', actualHours: '',
+    emailNotificationsEnabled: true,
   });
 
   useEffect(() => {
@@ -38,6 +39,7 @@ export default function TaskForm({ taskId, defaultStatus, onClose, onSaved }) {
           assignedTo:     (t.assignedTo || []).map(a => a.userId),
           estimatedHours: t.estimatedHours || '',
           actualHours:    t.actualHours    || '',
+          emailNotificationsEnabled: t.emailNotificationsEnabled !== false,
         });
       }
       setLoading(false);
@@ -164,6 +166,20 @@ export default function TaskForm({ taskId, defaultStatus, onClose, onSaved }) {
           })}
         </div>
       </div>
+
+      {/* Email notifications toggle */}
+      <label style={{ display:'flex', alignItems:'center', gap:10, cursor:'pointer', fontSize:13, padding:'8px 0', borderTop:'1px solid var(--border)' }}>
+        <input
+          type="checkbox"
+          checked={form.emailNotificationsEnabled}
+          onChange={e => set('emailNotificationsEnabled', e.target.checked)}
+          style={{ width:16, height:16, accentColor:'#3b82f6', flexShrink:0 }}
+        />
+        <span>
+          <strong>Email notifications</strong>
+          <span style={{ color:'var(--muted)', marginLeft:6 }}>— notify assignees on status changes and due dates</span>
+        </span>
+      </label>
 
       <div className="form-actions">
         <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>

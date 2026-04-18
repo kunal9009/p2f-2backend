@@ -15,6 +15,7 @@ import Team from './pages/Team';
 import Reports from './pages/Reports';
 import Users from './pages/Users';
 import Settings from './pages/Settings';
+import Calendar from './pages/Calendar';
 
 function ProtectedRoute({ children }) {
   const { token } = useAuth();
@@ -63,6 +64,7 @@ export default function App() {
                   <Route path="/search"    element={<ProtectedRoute><ErrorBoundary><Search /></ErrorBoundary></ProtectedRoute>} />
                   <Route path="/team"      element={<ProtectedRoute><ErrorBoundary><Team /></ErrorBoundary></ProtectedRoute>} />
                   <Route path="/reports"   element={<ProtectedRoute><ErrorBoundary><Reports /></ErrorBoundary></ProtectedRoute>} />
+                  <Route path="/calendar"  element={<ProtectedRoute><ErrorBoundary><Calendar /></ErrorBoundary></ProtectedRoute>} />
                   <Route path="/settings"  element={<ProtectedRoute><ErrorBoundary><Settings /></ErrorBoundary></ProtectedRoute>} />
                   <Route path="/users"     element={<AdminRoute><ErrorBoundary><Users /></ErrorBoundary></AdminRoute>} />
                 </Route>

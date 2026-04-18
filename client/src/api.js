@@ -31,11 +31,10 @@ export async function api(url, method = 'GET', body = null) {
     if (res.status === 401) {
       clearAuth();
       window.location.href = '/app/login';
-      return {};
+      return { success: false, message: 'Session expired' };
     }
     return await res.json();
   } catch (err) {
-    console.error('API error:', err);
     return { success: false, message: err.message };
   }
 }

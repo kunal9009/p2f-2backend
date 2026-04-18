@@ -46,7 +46,7 @@ export default function Login() {
           </svg>
           <div>
             <h1 style={{ margin: 0, fontSize: 22 }}>MahattaART</h1>
-            <p style={{ margin: 0, color: '#64748b', fontSize: 13 }}>Task Management System</p>
+            <p style={{ margin: 0, color: 'var(--muted)', fontSize: 13 }}>Task Management System</p>
           </div>
         </div>
         {error && <div className="alert alert-error">{error}</div>}

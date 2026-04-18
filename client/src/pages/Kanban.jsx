@@ -87,43 +87,48 @@ export default function Kanban() {
                 <span className="kanban-col-count">{(columns[col.status] || []).length}</span>
               </div>
 
-              {(columns[col.status] || []).length === 0 && (
-                <div style={{ padding:'16px 0', textAlign:'center', color:'#94a3b8', fontSize:13 }}>
-                  Drop tasks here
-                </div>
-              )}
-              {(columns[col.status] || []).map(task => (
-                <div
-                  key={task._id}
-                  className="kanban-card"
-                  draggable
-                  onDragStart={e => onDragStart(e, task._id)}
-                  onClick={() => setModal({ type:'edit', taskId: task._id })}
-                >
-                  <div className="kanban-card-id">{task.taskId}</div>
-                  <div className="kanban-card-title">{task.title}</div>
-                  {task.project && <div className="kanban-card-project">📁 {task.project}</div>}
-                  <div className="kanban-card-footer">
-                    <span style={{ background: PRIORITY_COLOR[task.priority]+'20', color: PRIORITY_COLOR[task.priority], fontSize:10, padding:'2px 6px', borderRadius:4, fontWeight:600 }}>
-                      {task.priority}
-                    </span>
-                    {task.dueDate && (
-                      <span style={{ fontSize:11, color:'#64748b' }}>
-                        📅 {new Date(task.dueDate).toLocaleDateString('en-IN',{day:'numeric',month:'short'})}
-                      </span>
-                    )}
-                    {(task.assignedTo||[]).length > 0 && (
-                      <div style={{ marginLeft:'auto', display:'flex', gap:2 }}>
-                        {task.assignedTo.slice(0,3).map(a => (
-                          <div key={a.userId} className="user-avatar" style={{ width:20,height:20,fontSize:9 }} title={a.name}>
-                            {a.name.slice(0,1).toUpperCase()}
-                          </div>
-                        ))}
-                      </div>
-                    )}
+              <div className="kanban-col-body">
+                {(columns[col.status] || []).length === 0 && (
+                  <div style={{ padding:'16px 0', textAlign:'center', color:'#94a3b8', fontSize:13 }}>
+                    Drop tasks here
                   </div>
-                </div>
-              ))}
+                )}
+                {(columns[col.status] || []).map(task => {
+                  const isOverdue = task.dueDate && new Date(task.dueDate) < new Date() && !['completed','cancelled'].includes(task.status);
+                  return (
+                  <div
+                    key={task._id}
+                    className="kanban-card"
+                    draggable
+                    onDragStart={e => onDragStart(e, task._id)}
+                    onClick={() => setModal({ type:'edit', taskId: task._id })}
+                  >
+                    <div className="kanban-card-id">{task.taskId}</div>
+                    <div className="kanban-card-title">{task.title}</div>
+                    {task.project && <div className="kanban-card-project">📁 {task.project}</div>}
+                    <div className="kanban-card-footer">
+                      <span style={{ background: PRIORITY_COLOR[task.priority]+'20', color: PRIORITY_COLOR[task.priority], fontSize:10, padding:'2px 6px', borderRadius:4, fontWeight:600 }}>
+                        {task.priority}
+                      </span>
+                      {task.dueDate && (
+                        <span style={{ fontSize:11, color: isOverdue ? '#ef4444' : '#64748b', fontWeight: isOverdue ? 600 : 400 }}>
+                          {isOverdue ? '⚠️ ' : '📅 '}{new Date(task.dueDate).toLocaleDateString('en-IN',{day:'numeric',month:'short'})}
+                        </span>
+                      )}
+                      {(task.assignedTo||[]).length > 0 && (
+                        <div style={{ marginLeft:'auto', display:'flex', gap:2 }}>
+                          {task.assignedTo.slice(0,3).map(a => (
+                            <div key={a.userId} className="user-avatar" style={{ width:20,height:20,fontSize:9 }} title={a.name}>
+                              {a.name.slice(0,1).toUpperCase()}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  );
+                })}
+              </div>
 
               {/* Quick-add */}
               <div className="quick-add">

@@ -16,7 +16,7 @@ export function AuthProvider({ children }) {
   function logout() {
     clearAuth();
     setToken(null);
-    setUser({});
+    setUser(null);
   }
 
   return (

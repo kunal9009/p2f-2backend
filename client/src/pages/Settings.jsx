@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { api } from '../api';
@@ -6,18 +6,28 @@ import { api } from '../api';
 export default function Settings() {
   const { user }   = useAuth();
   const { toast }  = useToast();
-  const [stats,      setStats]      = useState(null);
-  const [testEmail,  setTestEmail]  = useState('');
-  const [testResult, setTestResult] = useState(null);
-  const [testLoading,setTestLoading]= useState(false);
+  const [stats,        setStats]        = useState(null);
+  const [scheduler,    setScheduler]    = useState(null);
+  const [schedLoading, setSchedLoading] = useState(true);
+  const [testEmail,    setTestEmail]    = useState('');
+  const [testResult,   setTestResult]   = useState(null);
+  const [testLoading,  setTestLoading]  = useState(false);
   const [pwForm, setPwForm] = useState({ curPw:'', newPw:'', confirmPw:'' });
   const [pwState, setPwState] = useState({ loading:false, error:'', success:'' });
+
+  const loadScheduler = useCallback(async () => {
+    setSchedLoading(true);
+    const res = await api('/api/admin/tasks/scheduler-status');
+    if (res.success) setScheduler(res.data);
+    setSchedLoading(false);
+  }, []);
 
   useEffect(() => {
     api('/api/admin/tasks/dashboard').then(res => {
       if (res.success) setStats(res.data.summary);
     });
-  }, []);
+    loadScheduler();
+  }, [loadScheduler]);
 
   async function sendTestEmail() {
     if (!testEmail.trim()) { toast('Enter a recipient email.', 'warning'); return; }
@@ -43,12 +53,11 @@ export default function Settings() {
     }
   }
 
-  const CRON_JOBS = [
-    { icon:'🌅', name:'Daily Reminders',   time:'Runs every day at 9:00 AM' },
-    { icon:'🔁', name:'Due-Soon Alert',    time:'Tasks due within 24 hours' },
-    { icon:'🚨', name:'Overdue Alert',     time:'Tasks past due date (daily 9 AM)' },
-    { icon:'🔔', name:'Custom Reminders',  time:'Checks every hour for custom reminder dates' },
-  ];
+  function fmtUptime(s) {
+    if (s < 60) return s + 's';
+    if (s < 3600) return Math.floor(s/60) + 'm ' + (s%60) + 's';
+    return Math.floor(s/3600) + 'h ' + Math.floor((s%3600)/60) + 'm';
+  }
 
   return (
     <div>
@@ -77,6 +86,20 @@ export default function Settings() {
               </div>
             ))}
           </div>
+
+          {/* Email status badge */}
+          {scheduler && (
+            <div style={{ marginTop:12, display:'flex', alignItems:'center', gap:8 }}>
+              <span style={{
+                fontSize:12, fontWeight:700, padding:'3px 10px', borderRadius:6,
+                background: scheduler.emailConfigured ? '#dcfce7' : '#fee2e2',
+                color:      scheduler.emailConfigured ? '#166534' : '#991b1b',
+              }}>
+                {scheduler.emailConfigured ? '✅ Email configured' : '⚠️ Email not configured'}
+              </span>
+            </div>
+          )}
+
           <div className="settings-field" style={{ marginTop:16 }}>
             <label style={{ fontSize:13, fontWeight:500, marginBottom:6, display:'block' }}>Send test email to</label>
             <div className="settings-row">
@@ -101,22 +124,58 @@ export default function Settings() {
           </div>
         </div>
 
-        {/* Scheduler */}
+        {/* Scheduler — dynamic */}
         <div className="card settings-card">
-          <h3 className="settings-section-title">⏰ Reminder Scheduler</h3>
-          <p className="settings-desc">Cron jobs run automatically when the server starts.</p>
-          <div className="schedule-table">
-            {CRON_JOBS.map(j => (
-              <div key={j.name} className="schedule-row">
-                <div className="schedule-icon">{j.icon}</div>
-                <div>
-                  <div className="schedule-name">{j.name}</div>
-                  <div className="schedule-time">{j.time}</div>
-                </div>
-                <span className="schedule-badge active">Active</span>
-              </div>
-            ))}
+          <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:4 }}>
+            <h3 className="settings-section-title" style={{ margin:0 }}>⏰ Reminder Scheduler</h3>
+            <button
+              className="btn btn-secondary btn-sm"
+              style={{ marginLeft:'auto' }}
+              onClick={loadScheduler}
+              disabled={schedLoading}
+              title="Refresh scheduler status"
+            >
+              {schedLoading ? '…' : '↻'}
+            </button>
           </div>
+          {scheduler && (
+            <p className="settings-desc" style={{ marginBottom:12 }}>
+              Server uptime: <strong>{fmtUptime(scheduler.serverUptime)}</strong>
+              {' · '}Cron jobs start automatically with the server.
+            </p>
+          )}
+
+          {schedLoading ? (
+            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              {[1,2,3].map(i => (
+                <div key={i} className="skel" style={{ height:56, borderRadius:8 }} />
+              ))}
+            </div>
+          ) : scheduler ? (
+            <div className="schedule-table">
+              {scheduler.jobs.map(j => (
+                <div key={j.id} className="schedule-row">
+                  <div className="schedule-icon">{j.icon}</div>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div className="schedule-name">{j.name}</div>
+                    <div className="schedule-time">{j.schedule} — {j.description}</div>
+                  </div>
+                  <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:4, flexShrink:0 }}>
+                    <span className="schedule-badge active">● Active</span>
+                    <span style={{
+                      fontSize:11, fontWeight:600, padding:'2px 8px', borderRadius:4,
+                      background: j.pendingCount > 0 ? '#fef3c7' : '#f0fdf4',
+                      color:      j.pendingCount > 0 ? '#92400e' : '#166534',
+                    }}>
+                      {j.pendingCount > 0 ? `${j.pendingCount} pending` : 'None pending'}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div style={{ color:'#ef4444', fontSize:13 }}>Failed to load scheduler status.</div>
+          )}
         </div>
 
         {/* System snapshot */}
@@ -132,7 +191,7 @@ export default function Settings() {
             ].map(([k,v]) => (
               <div key={k} className="env-row"><code>{k}</code><span>{v}</span></div>
             )) : (
-              <div className="env-row"><span>Loading…</span></div>
+              <div className="env-row"><span style={{ color:'var(--muted)' }}>Loading…</span></div>
             )}
           </div>
         </div>

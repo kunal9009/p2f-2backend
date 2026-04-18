@@ -99,6 +99,12 @@ exports.dashboard = async (req, res) => {
     const todayEnd   = new Date(); todayEnd.setHours(23, 59, 59, 999);
     const weekEnd    = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 
+    // Optional date-range filter (used by Reports page)
+    const baseFilter = {};
+    if (req.query.dueAfter)  baseFilter.dueDate = { ...baseFilter.dueDate, $gte: new Date(req.query.dueAfter) };
+    if (req.query.dueBefore) baseFilter.dueDate = { ...baseFilter.dueDate, $lte: new Date(req.query.dueBefore) };
+    const matchStage = Object.keys(baseFilter).length ? [{ $match: baseFilter }] : [];
+
     const [
       statusBreakdown,
       priorityBreakdown,
@@ -113,18 +119,21 @@ exports.dashboard = async (req, res) => {
     ] = await Promise.all([
       // Tasks by status
       Task.aggregate([
+        ...matchStage,
         { $group: { _id: '$status', count: { $sum: 1 } } },
         { $sort: { _id: 1 } },
       ]),
 
       // Tasks by priority
       Task.aggregate([
+        ...matchStage,
         { $group: { _id: '$priority', count: { $sum: 1 } } },
         { $sort: { _id: 1 } },
       ]),
 
       // Tasks by project
       Task.aggregate([
+        ...matchStage,
         { $group: { _id: '$project', count: { $sum: 1 } } },
         { $sort: { count: -1 } },
         { $limit: 10 },
@@ -132,6 +141,7 @@ exports.dashboard = async (req, res) => {
 
       // Tasks by assignee (top 10)
       Task.aggregate([
+        ...matchStage,
         { $unwind: { path: '$assignedTo', preserveNullAndEmptyArrays: false } },
         {
           $group: {
@@ -163,27 +173,31 @@ exports.dashboard = async (req, res) => {
 
       // Overdue tasks (not completed/cancelled, past due date)
       Task.countDocuments({
+        ...baseFilter,
         status: { $nin: [TASK_STATUS.COMPLETED, TASK_STATUS.CANCELLED] },
-        dueDate: { $lt: now },
+        dueDate: { ...(baseFilter.dueDate || {}), $lt: now },
       }),
 
       // Due today
       Task.countDocuments({
+        ...baseFilter,
         status: { $nin: [TASK_STATUS.COMPLETED, TASK_STATUS.CANCELLED] },
         dueDate: { $gte: todayStart, $lte: todayEnd },
       }),
 
       // Due this week
       Task.countDocuments({
+        ...baseFilter,
         status: { $nin: [TASK_STATUS.COMPLETED, TASK_STATUS.CANCELLED] },
         dueDate: { $gte: now, $lte: weekEnd },
       }),
 
-      Task.countDocuments({}),
-      Task.countDocuments({ status: TASK_STATUS.COMPLETED }),
+      Task.countDocuments({ ...baseFilter }),
+      Task.countDocuments({ ...baseFilter, status: TASK_STATUS.COMPLETED }),
 
       // Recently completed (last 7 days)
       Task.find({
+        ...baseFilter,
         status: TASK_STATUS.COMPLETED,
         completedAt: { $gte: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000) },
       }).sort('-completedAt').limit(5).select('taskId title completedAt assignedTo project'),
@@ -666,6 +680,93 @@ exports.search = async (req, res) => {
     });
 
     res.json({ success: true, data: results, query: q });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// ─── GET /api/admin/tasks/scheduler-status ───
+exports.schedulerStatus = async (req, res) => {
+  try {
+    const now  = new Date();
+    const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    const in1h  = new Date(now.getTime() + 60 * 60 * 1000);
+    const activeStatuses = { $nin: ['completed', 'cancelled'] };
+
+    const [dueSoon, overdue, customReminder, overdueTotal] = await Promise.all([
+      Task.countDocuments({
+        status: activeStatuses,
+        dueDate: { $gte: now, $lte: in24h },
+        dueSoonReminderSent: false,
+        emailNotificationsEnabled: true,
+        'assignedTo.0': { $exists: true },
+      }),
+      Task.countDocuments({
+        status: activeStatuses,
+        dueDate: { $lt: now },
+        overdueReminderSent: false,
+        emailNotificationsEnabled: true,
+        'assignedTo.0': { $exists: true },
+      }),
+      Task.countDocuments({
+        status: activeStatuses,
+        reminderDate: { $gte: now, $lte: in1h },
+        reminderSent: false,
+        emailNotificationsEnabled: true,
+        'assignedTo.0': { $exists: true },
+      }),
+      Task.countDocuments({
+        status: activeStatuses,
+        dueDate: { $lt: now },
+      }),
+    ]);
+
+    const emailConfigured = !!(
+      process.env.EMAIL_HOST &&
+      process.env.EMAIL_USER &&
+      process.env.EMAIL_PASS
+    );
+
+    res.json({
+      success: true,
+      data: {
+        emailConfigured,
+        serverUptime: Math.floor(process.uptime()),
+        jobs: [
+          {
+            id: 'due_soon',
+            icon: '🔁',
+            name: 'Due-Soon Alert',
+            schedule: 'Daily at 9:00 AM',
+            description: 'Notifies assignees of tasks due within 24 hours',
+            pendingCount: dueSoon,
+            active: true,
+          },
+          {
+            id: 'overdue',
+            icon: '🚨',
+            name: 'Overdue Reminder',
+            schedule: 'Daily at 9:00 AM',
+            description: 'Notifies assignees of overdue tasks',
+            pendingCount: overdue,
+            active: true,
+          },
+          {
+            id: 'custom',
+            icon: '🔔',
+            name: 'Custom Reminders',
+            schedule: 'Every hour',
+            description: 'Sends reminders on custom reminder dates',
+            pendingCount: customReminder,
+            active: true,
+          },
+        ],
+        liveStats: {
+          overdueTotal,
+          dueSoonTotal: dueSoon,
+        },
+      },
+    });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

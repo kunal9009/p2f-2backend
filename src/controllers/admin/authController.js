@@ -65,14 +65,12 @@ exports.register = async (req, res) => {
       });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    const user = await User.create({
-      name,
-      email,
-      password: hashedPassword,
-      role: role || 'admin'
-    });
+const user = await User.create({
+  name,
+  email,
+  password, // plain password
+  role: role || 'admin'
+});
 
     res.json({
       success: true,

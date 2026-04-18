@@ -13,7 +13,8 @@ export function saveAuth(token, user) {
 }
 
 export function clearAuth() {
-
+  localStorage.removeItem('tm_token');
+  localStorage.removeItem('tm_user');
 }
 
 export async function api(url, method = 'GET', body = null) {
@@ -27,10 +28,13 @@ export async function api(url, method = 'GET', body = null) {
   if (body) opts.body = JSON.stringify(body);
   try {
     const res = await fetch(url, opts);
-   
+    if (res.status === 401) {
+      clearAuth();
+      window.location.href = '/app/login';
+      return { success: false, message: 'Session expired' };
+    }
     return await res.json();
   } catch (err) {
-    console.error('API error:', err);
     return { success: false, message: err.message };
   }
 }

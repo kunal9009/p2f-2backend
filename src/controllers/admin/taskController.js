@@ -670,3 +670,90 @@ exports.search = async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 };
+
+// ─── GET /api/admin/tasks/scheduler-status ───
+exports.schedulerStatus = async (req, res) => {
+  try {
+    const now  = new Date();
+    const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    const in1h  = new Date(now.getTime() + 60 * 60 * 1000);
+    const activeStatuses = { $nin: ['completed', 'cancelled'] };
+
+    const [dueSoon, overdue, customReminder, overdueTotal] = await Promise.all([
+      Task.countDocuments({
+        status: activeStatuses,
+        dueDate: { $gte: now, $lte: in24h },
+        dueSoonReminderSent: false,
+        emailNotificationsEnabled: true,
+        'assignedTo.0': { $exists: true },
+      }),
+      Task.countDocuments({
+        status: activeStatuses,
+        dueDate: { $lt: now },
+        overdueReminderSent: false,
+        emailNotificationsEnabled: true,
+        'assignedTo.0': { $exists: true },
+      }),
+      Task.countDocuments({
+        status: activeStatuses,
+        reminderDate: { $gte: now, $lte: in1h },
+        reminderSent: false,
+        emailNotificationsEnabled: true,
+        'assignedTo.0': { $exists: true },
+      }),
+      Task.countDocuments({
+        status: activeStatuses,
+        dueDate: { $lt: now },
+      }),
+    ]);
+
+    const emailConfigured = !!(
+      process.env.EMAIL_HOST &&
+      process.env.EMAIL_USER &&
+      process.env.EMAIL_PASS
+    );
+
+    res.json({
+      success: true,
+      data: {
+        emailConfigured,
+        serverUptime: Math.floor(process.uptime()),
+        jobs: [
+          {
+            id: 'due_soon',
+            icon: '🔁',
+            name: 'Due-Soon Alert',
+            schedule: 'Daily at 9:00 AM',
+            description: 'Notifies assignees of tasks due within 24 hours',
+            pendingCount: dueSoon,
+            active: true,
+          },
+          {
+            id: 'overdue',
+            icon: '🚨',
+            name: 'Overdue Reminder',
+            schedule: 'Daily at 9:00 AM',
+            description: 'Notifies assignees of overdue tasks',
+            pendingCount: overdue,
+            active: true,
+          },
+          {
+            id: 'custom',
+            icon: '🔔',
+            name: 'Custom Reminders',
+            schedule: 'Every hour',
+            description: 'Sends reminders on custom reminder dates',
+            pendingCount: customReminder,
+            active: true,
+          },
+        ],
+        liveStats: {
+          overdueTotal,
+          dueSoonTotal: dueSoon,
+        },
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};

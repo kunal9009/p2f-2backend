@@ -177,9 +177,19 @@ export default function Dashboard() {
                 <div className="activity-dot" />
                 <div className="activity-content">
                   <strong>{a.actor || 'System'}</strong>{' '}
-                  {a.type === 'status_change'
-                    ? `changed status → ${(a.toStatus||'').replace('_',' ')}`
-                    : 'commented'}
+                  {a.type === 'status_change' ? (
+                    <>
+                      changed status{' '}
+                      <span style={{ color:'var(--muted)' }}>{(a.fromStatus||'').replace('_',' ')}</span>
+                      {' → '}
+                      <span style={{ fontWeight:600 }}>{(a.toStatus||'').replace('_',' ')}</span>
+                    </>
+                  ) : (
+                    <>
+                      commented
+                      {a.text && <span style={{ color:'var(--muted)', fontStyle:'italic' }}>{' "' + a.text.slice(0,60) + (a.text.length>60?'…':'"')}</span>}
+                    </>
+                  )}
                   {a.taskId && <span className="activity-task"> · {a.taskId}</span>}
                   <div className="activity-time">{new Date(a.timestamp).toLocaleString('en-IN',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</div>
                 </div>

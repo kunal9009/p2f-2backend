@@ -99,6 +99,12 @@ exports.dashboard = async (req, res) => {
     const todayEnd   = new Date(); todayEnd.setHours(23, 59, 59, 999);
     const weekEnd    = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 
+    // Optional date-range filter (used by Reports page)
+    const baseFilter = {};
+    if (req.query.dueAfter)  baseFilter.dueDate = { ...baseFilter.dueDate, $gte: new Date(req.query.dueAfter) };
+    if (req.query.dueBefore) baseFilter.dueDate = { ...baseFilter.dueDate, $lte: new Date(req.query.dueBefore) };
+    const matchStage = Object.keys(baseFilter).length ? [{ $match: baseFilter }] : [];
+
     const [
       statusBreakdown,
       priorityBreakdown,
@@ -113,18 +119,21 @@ exports.dashboard = async (req, res) => {
     ] = await Promise.all([
       // Tasks by status
       Task.aggregate([
+        ...matchStage,
         { $group: { _id: '$status', count: { $sum: 1 } } },
         { $sort: { _id: 1 } },
       ]),
 
       // Tasks by priority
       Task.aggregate([
+        ...matchStage,
         { $group: { _id: '$priority', count: { $sum: 1 } } },
         { $sort: { _id: 1 } },
       ]),
 
       // Tasks by project
       Task.aggregate([
+        ...matchStage,
         { $group: { _id: '$project', count: { $sum: 1 } } },
         { $sort: { count: -1 } },
         { $limit: 10 },
@@ -132,6 +141,7 @@ exports.dashboard = async (req, res) => {
 
       // Tasks by assignee (top 10)
       Task.aggregate([
+        ...matchStage,
         { $unwind: { path: '$assignedTo', preserveNullAndEmptyArrays: false } },
         {
           $group: {
@@ -163,27 +173,31 @@ exports.dashboard = async (req, res) => {
 
       // Overdue tasks (not completed/cancelled, past due date)
       Task.countDocuments({
+        ...baseFilter,
         status: { $nin: [TASK_STATUS.COMPLETED, TASK_STATUS.CANCELLED] },
-        dueDate: { $lt: now },
+        dueDate: { ...(baseFilter.dueDate || {}), $lt: now },
       }),
 
       // Due today
       Task.countDocuments({
+        ...baseFilter,
         status: { $nin: [TASK_STATUS.COMPLETED, TASK_STATUS.CANCELLED] },
         dueDate: { $gte: todayStart, $lte: todayEnd },
       }),
 
       // Due this week
       Task.countDocuments({
+        ...baseFilter,
         status: { $nin: [TASK_STATUS.COMPLETED, TASK_STATUS.CANCELLED] },
         dueDate: { $gte: now, $lte: weekEnd },
       }),
 
-      Task.countDocuments({}),
-      Task.countDocuments({ status: TASK_STATUS.COMPLETED }),
+      Task.countDocuments({ ...baseFilter }),
+      Task.countDocuments({ ...baseFilter, status: TASK_STATUS.COMPLETED }),
 
       // Recently completed (last 7 days)
       Task.find({
+        ...baseFilter,
         status: TASK_STATUS.COMPLETED,
         completedAt: { $gte: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000) },
       }).sort('-completedAt').limit(5).select('taskId title completedAt assignedTo project'),

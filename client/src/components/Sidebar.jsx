@@ -12,6 +12,7 @@ const NAV = [
   { id: 'search',    label: 'Search',       icon: '🔍', to: '/search'   },
   { id: 'team',      label: 'Team',         icon: '👥', to: '/team'     },
   { id: 'reports',   label: 'Reports',      icon: '📈', to: '/reports'  },
+  { id: 'calendar',  label: 'Calendar',     icon: '📅', to: '/calendar' },
   { id: 'users',     label: 'Users',        icon: '👤', to: '/users',   adminOnly: true },
   { id: 'settings',  label: 'Settings',     icon: '⚙️', to: '/settings' },
 ];

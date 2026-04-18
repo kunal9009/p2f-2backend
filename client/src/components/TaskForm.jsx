@@ -5,7 +5,7 @@ import { useToast } from '../contexts/ToastContext';
 const STATUSES   = ['todo','in_progress','testing','on_hold','completed','cancelled'];
 const PRIORITIES = ['critical','high','medium','low'];
 
-export default function TaskForm({ taskId, defaultStatus, onClose, onSaved }) {
+export default function TaskForm({ taskId, defaultStatus, defaultDueDate, onClose, onSaved }) {
   const { toast }             = useToast();
   const [users,   setUsers]   = useState([]);
   const [loading, setLoading] = useState(true);
@@ -13,7 +13,7 @@ export default function TaskForm({ taskId, defaultStatus, onClose, onSaved }) {
   const [error,   setError]   = useState('');
   const [form, setForm] = useState({
     title: '', description: '', status: defaultStatus || 'todo',
-    priority: 'medium', project: '', dueDate: '', reminderDate: '',
+    priority: 'medium', project: '', dueDate: defaultDueDate || '', reminderDate: '',
     tags: '', assignedTo: [], estimatedHours: '', actualHours: '',
   });
 

@@ -10,10 +10,11 @@ export default function ConfirmDialog({ message, confirmLabel = 'Confirm', dange
       onClick={e => { if (e.target === e.currentTarget) onCancel(); }}
     >
       <div style={{
-        background:'#fff', borderRadius:12, padding:'24px 28px',
+        background:'var(--card)', borderRadius:12, padding:'24px 28px',
         maxWidth:380, width:'90%', boxShadow:'0 8px 32px rgba(0,0,0,.2)',
+        border:'1px solid var(--border)',
       }}>
-        <p style={{ fontSize:15, lineHeight:1.5, margin:'0 0 20px', color:'#1e293b' }}>{message}</p>
+        <p style={{ fontSize:15, lineHeight:1.5, margin:'0 0 20px', color:'var(--text)' }}>{message}</p>
         <div style={{ display:'flex', gap:8, justifyContent:'flex-end' }}>
           <button className="btn btn-secondary" onClick={onCancel}>Cancel</button>
           <button

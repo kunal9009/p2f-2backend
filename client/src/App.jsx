@@ -19,10 +19,7 @@ import Calendar from './pages/Calendar';
 
 function ProtectedRoute({ children }) {
   const { token } = useAuth();
-  if (!token) {
-  return <div>Loading...</div>; // 🔥 redirect mat karo
-}
-return children;
+  return token ? children : <Navigate to="/login" replace />;
 }
 
 function AdminRoute({ children }) {

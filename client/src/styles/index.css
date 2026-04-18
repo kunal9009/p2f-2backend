@@ -258,6 +258,13 @@ a { color: inherit; text-decoration: none; }
 .card-due.overdue { color: #ef4444; font-weight: 600; }
 .card-meta  { font-size: 11px; color: var(--muted); margin-top: 6px; }
 
+/* ── Kanban column body (card list area) ── */
+.kanban-col-body {
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 8px 8px 4px;
+  min-height: 60px;
+}
+
 /* ── Kanban class aliases (React component uses kanban- prefix) ── */
 .kanban-col-title {
   display: flex; align-items: center; gap: 6px;
@@ -1011,7 +1018,6 @@ a.nav-item { text-decoration: none; }
 :root[data-theme="dark"] .kanban-col   { background: #1a2235; }
 :root[data-theme="dark"] .kanban-col-title { background: #1e293b; }
 :root[data-theme="dark"] .result-card  { background: var(--card); }
-:root[data-theme="dark"] .result-snippet { background: #263248; }
 :root[data-theme="dark"] .notif-panel  { background: #1e293b; border-color: var(--border); }
 :root[data-theme="dark"] .modal        { background: #1e293b; }
 :root[data-theme="dark"] .drawer       { background: #1e293b; }

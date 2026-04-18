@@ -101,14 +101,12 @@ app.get('/create-admin', async (req, res) => {
       return res.send('Admin already exists ✅');
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-
     const user = new User({
-      name: 'Admin',
-      email: email,
-      password: password,
-      role: 'admin'
-    });
+  name,
+  email,
+  password,
+  role: 'admin'
+});
 
     await user.save();
 

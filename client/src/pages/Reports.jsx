@@ -11,11 +11,11 @@ export default function Reports() {
   const [dateTo,  setDateTo]  = useState('');
   const [loading, setLoading] = useState(true);
 
-  async function load() {
+  async function load(from = dateFrom, to = dateTo) {
     setLoading(true);
     const qs = new URLSearchParams();
-    if (dateFrom) qs.set('dueAfter',  dateFrom);
-    if (dateTo)   qs.set('dueBefore', dateTo);
+    if (from) qs.set('dueAfter',  from);
+    if (to)   qs.set('dueBefore', to);
     const res = await api('/api/admin/tasks/dashboard?' + qs.toString());
     if (res.success) setData(res.data);
     setLoading(false);
@@ -72,7 +72,7 @@ export default function Reports() {
           <label style={{ fontSize:13, color:'#64748b' }}>To</label>
           <input type="date" className="input-sm" value={dateTo}   onChange={e=>setDateTo(e.target.value)}   />
           <button className="btn btn-primary btn-sm"   onClick={load}>Apply</button>
-          {(dateFrom||dateTo) && <button className="btn btn-secondary btn-sm" onClick={()=>{ clearDates(); setTimeout(load,0); }}>Clear</button>}
+          {(dateFrom||dateTo) && <button className="btn btn-secondary btn-sm" onClick={()=>{ clearDates(); load('',''); }}>Clear</button>}
         </div>
       </div>
 

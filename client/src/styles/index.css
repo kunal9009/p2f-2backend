@@ -1076,6 +1076,7 @@ a.nav-item { text-decoration: none; }
   font-size: 10px; background: #ede9fe; color: #7c3aed;
   border-radius: 4px; padding: 0 4px;
 }
+:root[data-theme="dark"] .tag-inline { background: #312e81; color: #a5b4fc; }
 
 /* ── Calendar ── */
 .cal-header-row {

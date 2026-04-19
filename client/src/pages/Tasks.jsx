@@ -299,7 +299,7 @@ export default function Tasks() {
                       <div style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{t.title}</div>
                       {(t.tags||[]).length > 0 && (
                         <div style={{ display:'flex', gap:3, flexWrap:'wrap', marginTop:2 }}>
-                          {t.tags.slice(0,3).map(tag => <span key={tag} style={{ fontSize:10, background:'#ede9fe', color:'#7c3aed', borderRadius:4, padding:'0 4px' }}>{tag}</span>)}
+                          {t.tags.slice(0,3).map(tag => <span key={tag} className="tag-inline">{tag}</span>)}
                         </div>
                       )}
                     </td>

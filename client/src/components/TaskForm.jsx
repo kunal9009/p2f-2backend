@@ -84,7 +84,7 @@ export default function TaskForm({ taskId, defaultStatus, defaultDueDate, onClos
     else             { setError(res.message || 'Save failed'); toast(res.message || 'Save failed', 'error'); }
   }
 
-  if (loading) return <div style={{ padding: 32, textAlign: 'center', color: '#64748b' }}>Loading…</div>;
+  if (loading) return <div style={{ padding: 32, textAlign: 'center', color: 'var(--muted)' }}>Loading…</div>;
 
   return (
     <form className="task-form" onSubmit={handleSubmit} style={{ padding: 0 }}>

@@ -106,7 +106,7 @@ export default function Tasks() {
 
   function sortIcon(col) {
     const cur = sort.replace('-','');
-    if (cur !== col) return <span style={{ color:'#cbd5e1', marginLeft:4 }}>↕</span>;
+    if (cur !== col) return <span style={{ color:'var(--border)', marginLeft:4 }}>↕</span>;
     return <span style={{ color:'var(--accent)', marginLeft:4 }}>{sort.startsWith('-') ? '↓' : '↑'}</span>;
   }
 
@@ -247,13 +247,13 @@ export default function Tasks() {
       {selected.length > 0 && (
         <div className="bulk-bar">
           <span style={{ fontWeight:600 }}>{selected.length} selected</span>
-          <span style={{ color:'#94a3b8', fontSize:12 }}>Status →</span>
+          <span style={{ color:'var(--muted)', fontSize:12 }}>Status →</span>
           {STATUSES.map(s => (
             <button key={s} className="btn btn-secondary btn-sm" onClick={() => bulkStatus(s)}>
               {s.replace('_',' ')}
             </button>
           ))}
-          <span style={{ color:'#94a3b8', fontSize:12 }}>|</span>
+          <span style={{ color:'var(--muted)', fontSize:12 }}>|</span>
           <button className="btn btn-secondary btn-sm" onClick={() => setBulkAssignOpen(true)}>👤 Assign</button>
           <button className="btn btn-sm" style={{ background:'#ef4444', color:'#fff' }} onClick={bulkDelete}>🗑 Delete</button>
           <button className="btn btn-secondary btn-sm" onClick={() => setSelected([])}>✕</button>
@@ -263,7 +263,7 @@ export default function Tasks() {
       {/* Table */}
       <div className="card" style={{ padding:0, overflow:'auto' }}>
         {loading ? (
-          <div style={{ padding:32, textAlign:'center', color:'#64748b' }}>Loading…</div>
+          <div style={{ padding:32, textAlign:'center', color:'var(--muted)' }}>Loading…</div>
         ) : tasks.length === 0 ? (
           <EmptyState
             icon={hasFilters ? '🔍' : '📋'}

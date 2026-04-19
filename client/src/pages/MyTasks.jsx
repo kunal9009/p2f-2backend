@@ -60,7 +60,7 @@ export default function MyTasks() {
       )}
 
       {loading ? (
-        <div style={{ textAlign:'center', padding:40, color:'#64748b' }}>Loading…</div>
+        <div style={{ textAlign:'center', padding:40, color:'var(--muted)' }}>Loading…</div>
       ) : total === 0 ? (
         <EmptyState
           icon="🎉"
@@ -76,19 +76,19 @@ export default function MyTasks() {
               <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
                 <span style={{ width:10,height:10,borderRadius:'50%',background:SCOLOR[status],display:'inline-block' }} />
                 <h3 style={{ margin:0, fontSize:15 }}>{status.replace('_',' ')}</h3>
-                <span style={{ fontSize:12,color:'#64748b' }}>{ts.length}</span>
+                <span style={{ fontSize:12,color:'var(--muted)' }}>{ts.length}</span>
               </div>
               {ts.map(t => (
                 <div key={t._id} className="card" style={{ padding:'14px 16px', marginBottom:8, display:'flex', alignItems:'center', gap:12 }}>
                   <div style={{ flex:1 }}>
                     <div style={{ display:'flex', gap:8, alignItems:'center', marginBottom:4 }}>
-                      <span style={{ fontSize:11,color:'#64748b' }}>{t.taskId}</span>
+                      <span style={{ fontSize:11,color:'var(--muted)' }}>{t.taskId}</span>
                       <span className="priority-badge" style={{ background:PCOLOR[t.priority]+'20', color:PCOLOR[t.priority] }}>{t.priority}</span>
                     </div>
                     <div style={{ fontWeight:500, cursor:'pointer' }} onClick={() => setModal(t._id)}>{t.title}</div>
-                    {t.project && <div style={{ fontSize:12,color:'#64748b',marginTop:2 }}>📁 {t.project}</div>}
+                    {t.project && <div style={{ fontSize:12,color:'var(--muted)',marginTop:2 }}>📁 {t.project}</div>}
                     {t.dueDate && (
-                      <div style={{ fontSize:12, marginTop:4, color: new Date(t.dueDate)<new Date() ? '#ef4444':'#64748b' }}>
+                      <div style={{ fontSize:12, marginTop:4, color: new Date(t.dueDate)<new Date() ? '#ef4444':'var(--muted)' }}>
                         📅 {new Date(t.dueDate).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})}
                       </div>
                     )}

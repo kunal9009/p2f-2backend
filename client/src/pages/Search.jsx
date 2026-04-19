@@ -120,7 +120,7 @@ export default function Search() {
       ) : (
         <div className="search-results-list">
           {filtered.map(t => {
-            const ms = MATCH_STYLE[t.matchIn] || { label: t.matchIn, bg:'#f1f5f9', color:'#64748b' };
+            const ms = MATCH_STYLE[t.matchIn] || { label: t.matchIn, bg:'var(--bg)', color:'var(--muted)' };
             const due = t.dueDate ? new Date(t.dueDate).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}) : '';
             return (
               <div key={t._id} className="result-card" onClick={() => navigate('/tasks?id=' + t._id)}>

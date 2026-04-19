@@ -13,7 +13,7 @@ export default function Team() {
     });
   }, []);
 
-  if (loading) return <div style={{ padding:40, textAlign:'center', color:'#64748b' }}>Loading…</div>;
+  if (loading) return <div style={{ padding:40, textAlign:'center', color:'var(--muted)' }}>Loading…</div>;
   if (!data)   return <div className="alert alert-error">Failed to load team data.</div>;
 
   const { assigneeBreakdown = [] } = data;
@@ -62,11 +62,11 @@ export default function Team() {
                 </div>
                 <div style={{ flex:1, minWidth:0 }}>
                   <div style={{ fontWeight:600, fontSize:15 }}>{member.name}</div>
-                  <div style={{ fontSize:12, color:'#64748b' }}>{member.total} task{member.total!==1?'s':''} total</div>
+                  <div style={{ fontSize:12, color:'var(--muted)' }}>{member.total} task{member.total!==1?'s':''} total</div>
                 </div>
                 <div style={{ textAlign:'right', flexShrink:0 }}>
                   <div style={{ fontSize:22, fontWeight:700, color:'#10b981' }}>{pct}%</div>
-                  <div style={{ fontSize:11, color:'#64748b' }}>done</div>
+                  <div style={{ fontSize:11, color:'var(--muted)' }}>done</div>
                 </div>
               </div>
 
@@ -80,9 +80,9 @@ export default function Team() {
                   { label:'Done',      value:member.completed, color:'#10b981' },
                   { label:'Overdue',   value:member.overdue,   color:'#ef4444' },
                 ].map(s => (
-                  <div key={s.label} style={{ textAlign:'center', background:'#f8fafc', borderRadius:6, padding:'8px 4px' }}>
+                  <div key={s.label} style={{ textAlign:'center', background:'var(--bg)', borderRadius:6, padding:'8px 4px' }}>
                     <div style={{ fontSize:18, fontWeight:700, color:s.color }}>{s.value}</div>
-                    <div style={{ fontSize:11, color:'#64748b' }}>{s.label}</div>
+                    <div style={{ fontSize:11, color:'var(--muted)' }}>{s.label}</div>
                   </div>
                 ))}
               </div>
@@ -92,7 +92,7 @@ export default function Team() {
       </div>
 
       {assigneeBreakdown.length === 0 && (
-        <div className="card" style={{ padding:48, textAlign:'center', color:'#64748b' }}>
+        <div className="card" style={{ padding:48, textAlign:'center', color:'var(--muted)' }}>
           No team members with assigned tasks yet.
         </div>
       )}

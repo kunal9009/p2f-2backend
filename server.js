@@ -36,7 +36,7 @@ const vendorProductRoutes = require('./src/routes/vendor/productRoutes');
 const app = express();
 
 // ─── DEBUG ENV CHECK ───
-console.log("ENV CHECK → MONGODB_URI:", process.env.MONGODB_URI ? "[set]" : "undefined", "| MONGO_URI:", process.env.MONGO_URI ? "[set]" : "undefined");
+console.log("ENV CHECK → MONGO_URI:", process.env.MONGO_URI ? "[set]" : "undefined", "| MONGODB_URI:", process.env.MONGODB_URI ? "[set]" : "undefined");
 
 // ─── ENSURE UPLOAD DIRECTORY EXISTS ───
 const uploadDir = process.env.UPLOAD_DIR || 'uploads';

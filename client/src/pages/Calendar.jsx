@@ -3,8 +3,6 @@ import { api } from '../api';
 import TaskDetail from '../components/TaskDetail';
 import Modal from '../components/Modal';
 import TaskForm from '../components/TaskForm';
-import { useToast } from '../contexts/ToastContext';
-
 const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 const DAY_NAMES   = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
 const PCOLOR = { critical:'#ef4444', high:'#f97316', medium:'#3b82f6', low:'#10b981' };
@@ -29,7 +27,6 @@ function toDateKey(d) {
 }
 
 export default function Calendar() {
-  const { toast } = useToast();
   const now   = new Date();
   const [year,   setYear]   = useState(now.getFullYear());
   const [month,  setMonth]  = useState(now.getMonth());

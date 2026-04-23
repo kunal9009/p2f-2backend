@@ -23,7 +23,7 @@ export default function Reports() {
 
   useEffect(() => { load(); }, []);
 
-  if (loading) return <div style={{ padding:40, textAlign:'center', color:'#64748b' }}>Loading…</div>;
+  if (loading) return <div style={{ padding:40, textAlign:'center', color:'var(--muted)' }}>Loading…</div>;
   if (!data)   return <div className="alert alert-error">Failed to load reports.</div>;
 
   const { summary, statusBreakdown=[], priorityBreakdown=[], assigneeBreakdown=[], weeklyActivity=[], projectBreakdown=[] } = data;
@@ -67,9 +67,9 @@ export default function Reports() {
       <div className="page-header">
         <div><h2>Reports</h2><p className="text-muted">Analytics and performance overview</p></div>
         <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
-          <label style={{ fontSize:13, color:'#64748b' }}>From</label>
+          <label style={{ fontSize:13, color:'var(--muted)' }}>From</label>
           <input type="date" className="input-sm" value={dateFrom} onChange={e=>setDateFrom(e.target.value)} />
-          <label style={{ fontSize:13, color:'#64748b' }}>To</label>
+          <label style={{ fontSize:13, color:'var(--muted)' }}>To</label>
           <input type="date" className="input-sm" value={dateTo}   onChange={e=>setDateTo(e.target.value)}   />
           <button className="btn btn-primary btn-sm"   onClick={load}>Apply</button>
           {(dateFrom||dateTo) && <button className="btn btn-secondary btn-sm" onClick={()=>{ clearDates(); load('',''); }}>Clear</button>}
@@ -166,7 +166,7 @@ export default function Reports() {
                     <td style={{ fontWeight:500 }}>{a.name}</td>
                     <td>{a.total}</td>
                     <td style={{ color:'#10b981', fontWeight:600 }}>{a.completed}</td>
-                    <td style={{ color: a.overdue>0?'#ef4444':'#64748b' }}>{a.overdue}</td>
+                    <td style={{ color: a.overdue>0?'#ef4444':'var(--muted)' }}>{a.overdue}</td>
                     <td style={{ fontWeight:600, color: rate>=80?'#10b981':rate>=50?'#f59e0b':'#ef4444' }}>{rate}%</td>
                     <td style={{ width:'25%' }}>
                       <div className="progress-bar-wrap">

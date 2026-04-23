@@ -30,6 +30,8 @@ export default function Tasks() {
 
   const [tasks,    setTasks]    = useState([]);
   const [users,    setUsers]    = useState([]);
+  const [projects, setProjects] = useState([]);
+  const [allTags,  setAllTags]  = useState([]);
   const [total,    setTotal]    = useState(0);
   const [page,     setPage]     = useState(1);
   const [sort,     setSort]     = useState('-createdAt');
@@ -75,8 +77,14 @@ export default function Tasks() {
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
-    api('/api/admin/users').then(res => {
-      if (res.success) setUsers(res.data || res.users || []);
+    Promise.all([
+      api('/api/admin/users'),
+      api('/api/admin/tasks/projects'),
+      api('/api/admin/tasks/tags'),
+    ]).then(([uRes, pRes, tRes]) => {
+      if (uRes.success) setUsers(uRes.data || uRes.users || []);
+      if (pRes.success) setProjects(pRes.data || []);
+      if (tRes.success) setAllTags(tRes.data || []);
     });
   }, []);
 
@@ -106,7 +114,7 @@ export default function Tasks() {
 
   function sortIcon(col) {
     const cur = sort.replace('-','');
-    if (cur !== col) return <span style={{ color:'#cbd5e1', marginLeft:4 }}>↕</span>;
+    if (cur !== col) return <span style={{ color:'var(--border)', marginLeft:4 }}>↕</span>;
     return <span style={{ color:'var(--accent)', marginLeft:4 }}>{sort.startsWith('-') ? '↓' : '↑'}</span>;
   }
 
@@ -225,9 +233,17 @@ export default function Tasks() {
           {PRIORITIES.map(p => <option key={p} value={p}>{p}</option>)}
         </select>
         <input className="input-sm" placeholder="Project…" value={filters.project}
-          onChange={e => setFilter('project', e.target.value)} style={{ width:100 }} />
+          onChange={e => setFilter('project', e.target.value)} style={{ width:100 }}
+          list="task-project-list" />
+        <datalist id="task-project-list">
+          {projects.map(p => <option key={p} value={p} />)}
+        </datalist>
         <input className="input-sm" placeholder="Tag…" value={filters.tag}
-          onChange={e => setFilter('tag', e.target.value)} style={{ width:80 }} />
+          onChange={e => setFilter('tag', e.target.value)} style={{ width:80 }}
+          list="task-tag-list" />
+        <datalist id="task-tag-list">
+          {allTags.map(t => <option key={t} value={t} />)}
+        </datalist>
         <select className="input-sm" value={filters.assignedTo} onChange={e => setFilter('assignedTo', e.target.value)} style={{ width:130 }}>
           <option value="">All members</option>
           {users.map(u => <option key={u._id||u.id} value={u._id||u.id}>{u.name}</option>)}
@@ -247,13 +263,13 @@ export default function Tasks() {
       {selected.length > 0 && (
         <div className="bulk-bar">
           <span style={{ fontWeight:600 }}>{selected.length} selected</span>
-          <span style={{ color:'#94a3b8', fontSize:12 }}>Status →</span>
+          <span style={{ color:'var(--muted)', fontSize:12 }}>Status →</span>
           {STATUSES.map(s => (
             <button key={s} className="btn btn-secondary btn-sm" onClick={() => bulkStatus(s)}>
               {s.replace('_',' ')}
             </button>
           ))}
-          <span style={{ color:'#94a3b8', fontSize:12 }}>|</span>
+          <span style={{ color:'var(--muted)', fontSize:12 }}>|</span>
           <button className="btn btn-secondary btn-sm" onClick={() => setBulkAssignOpen(true)}>👤 Assign</button>
           <button className="btn btn-sm" style={{ background:'#ef4444', color:'#fff' }} onClick={bulkDelete}>🗑 Delete</button>
           <button className="btn btn-secondary btn-sm" onClick={() => setSelected([])}>✕</button>
@@ -263,7 +279,7 @@ export default function Tasks() {
       {/* Table */}
       <div className="card" style={{ padding:0, overflow:'auto' }}>
         {loading ? (
-          <div style={{ padding:32, textAlign:'center', color:'#64748b' }}>Loading…</div>
+          <div style={{ padding:32, textAlign:'center', color:'var(--muted)' }}>Loading…</div>
         ) : tasks.length === 0 ? (
           <EmptyState
             icon={hasFilters ? '🔍' : '📋'}
@@ -299,7 +315,7 @@ export default function Tasks() {
                       <div style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{t.title}</div>
                       {(t.tags||[]).length > 0 && (
                         <div style={{ display:'flex', gap:3, flexWrap:'wrap', marginTop:2 }}>
-                          {t.tags.slice(0,3).map(tag => <span key={tag} style={{ fontSize:10, background:'#ede9fe', color:'#7c3aed', borderRadius:4, padding:'0 4px' }}>{tag}</span>)}
+                          {t.tags.slice(0,3).map(tag => <span key={tag} className="tag-inline">{tag}</span>)}
                         </div>
                       )}
                     </td>

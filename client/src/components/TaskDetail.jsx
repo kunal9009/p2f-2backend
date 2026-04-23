@@ -90,7 +90,7 @@ export default function TaskDetail({ taskId, onClose, onUpdated }) {
   }
 
   if (loading) return (
-    <div style={{ display:'flex', flexDirection:'column', height:'100%', alignItems:'center', justifyContent:'center', color:'#64748b' }}>
+    <div style={{ display:'flex', flexDirection:'column', height:'100%', alignItems:'center', justifyContent:'center', color:'var(--muted)' }}>
       Loading…
     </div>
   );
@@ -129,7 +129,7 @@ export default function TaskDetail({ taskId, onClose, onUpdated }) {
       <div style={{ padding:'20px 24px', borderBottom:'1px solid var(--border)', flexShrink:0 }}>
         <div style={{ display:'flex', alignItems:'flex-start', gap:12, marginBottom:8 }}>
           <div style={{ flex:1, minWidth:0 }}>
-            <div style={{ fontSize:11, color:'#64748b', marginBottom:4, display:'flex', gap:8, alignItems:'center' }}>
+            <div style={{ fontSize:11, color:'var(--muted)', marginBottom:4, display:'flex', gap:8, alignItems:'center' }}>
               <span style={{ fontWeight:700 }}>{task.taskId}</span>
               {task.project && <span>· 📁 {task.project}</span>}
             </div>
@@ -155,7 +155,7 @@ export default function TaskDetail({ taskId, onClose, onUpdated }) {
             {task.priority}
           </span>
           {task.dueDate && (
-            <span style={{ fontSize:12, color: isOverdue ? '#ef4444' : '#64748b' }}>
+            <span style={{ fontSize:12, color: isOverdue ? '#ef4444' : 'var(--muted)' }}>
               📅 {new Date(task.dueDate).toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short',year:'numeric'})}
               {isOverdue && ' ⚠️ Overdue'}
             </span>
@@ -193,7 +193,7 @@ export default function TaskDetail({ taskId, onClose, onUpdated }) {
           <div>
             {task.description && (
               <div style={{ marginBottom:20 }}>
-                <div style={{ fontSize:12, fontWeight:600, color:'#64748b', textTransform:'uppercase', letterSpacing:.5, marginBottom:6 }}>Description</div>
+                <div style={{ fontSize:12, fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:.5, marginBottom:6 }}>Description</div>
                 <p style={{ fontSize:14, lineHeight:1.6, color:'var(--text)', whiteSpace:'pre-wrap' }}>{task.description}</p>
               </div>
             )}
@@ -211,7 +211,7 @@ export default function TaskDetail({ taskId, onClose, onUpdated }) {
 
             {(task.tags||[]).length > 0 && (
               <div style={{ marginBottom:16 }}>
-                <div style={{ fontSize:12, fontWeight:600, color:'#64748b', textTransform:'uppercase', letterSpacing:.5, marginBottom:6 }}>Tags</div>
+                <div style={{ fontSize:12, fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:.5, marginBottom:6 }}>Tags</div>
                 <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
                   {task.tags.map(tag => <span key={tag} className="tag-chip">{tag}</span>)}
                 </div>
@@ -220,7 +220,7 @@ export default function TaskDetail({ taskId, onClose, onUpdated }) {
 
             {(task.assignedTo||[]).length > 0 && (
               <div>
-                <div style={{ fontSize:12, fontWeight:600, color:'#64748b', textTransform:'uppercase', letterSpacing:.5, marginBottom:8 }}>Assigned To</div>
+                <div style={{ fontSize:12, fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:.5, marginBottom:8 }}>Assigned To</div>
                 <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
                   {task.assignedTo.map(a => (
                     <div key={a.userId} style={{ display:'flex', alignItems:'center', gap:10 }}>
@@ -229,7 +229,7 @@ export default function TaskDetail({ taskId, onClose, onUpdated }) {
                       </div>
                       <div>
                         <div style={{ fontSize:13, fontWeight:500 }}>{a.name}</div>
-                        <div style={{ fontSize:11, color:'#64748b' }}>{a.email}</div>
+                        <div style={{ fontSize:11, color:'var(--muted)' }}>{a.email}</div>
                       </div>
                     </div>
                   ))}
@@ -242,21 +242,21 @@ export default function TaskDetail({ taskId, onClose, onUpdated }) {
         {tab === 'comments' && (
           <div>
             {(task.comments||[]).length === 0 ? (
-              <p style={{ color:'#64748b', fontSize:14 }}>No comments yet.</p>
+              <p style={{ color:'var(--muted)', fontSize:14 }}>No comments yet.</p>
             ) : (
               <div style={{ display:'flex', flexDirection:'column', gap:12, marginBottom:20 }}>
                 {[...(task.comments||[])].reverse().map(c => (
-                  <div key={c._id} style={{ background:'#f8fafc', borderRadius:8, padding:'12px 14px', position:'relative' }}>
+                  <div key={c._id} style={{ background:'var(--bg)', borderRadius:8, padding:'12px 14px', position:'relative' }}>
                     <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:6 }}>
                       <div className="user-avatar" style={{ width:24, height:24, fontSize:10, flexShrink:0 }}>
                         {(c.authorName||'U').slice(0,1).toUpperCase()}
                       </div>
                       <span style={{ fontSize:13, fontWeight:600 }}>{c.authorName}</span>
-                      <span style={{ fontSize:11, color:'#64748b', marginLeft:'auto' }}>
+                      <span style={{ fontSize:11, color:'var(--muted)', marginLeft:'auto' }}>
                         {new Date(c.createdAt).toLocaleString('en-IN',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}
                       </span>
                       {(isAdmin || String(c.authorId) === String(user?.id)) && (
-                        <button onClick={() => deleteComment(c._id)} style={{ background:'none',border:'none',cursor:'pointer',color:'#94a3b8',padding:'0 2px',fontSize:13 }} title="Delete">✕</button>
+                        <button onClick={() => deleteComment(c._id)} style={{ background:'none',border:'none',cursor:'pointer',color:'var(--muted)',padding:'0 2px',fontSize:13 }} title="Delete">✕</button>
                       )}
                     </div>
                     <p style={{ margin:0, fontSize:13, lineHeight:1.5, whiteSpace:'pre-wrap' }}>{c.text}</p>
@@ -285,7 +285,7 @@ export default function TaskDetail({ taskId, onClose, onUpdated }) {
         {tab === 'history' && (
           <div>
             {(task.statusHistory||[]).length === 0 ? (
-              <p style={{ color:'#64748b', fontSize:14 }}>No status changes recorded yet.</p>
+              <p style={{ color:'var(--muted)', fontSize:14 }}>No status changes recorded yet.</p>
             ) : (
               <div className="activity-feed">
                 {[...(task.statusHistory||[])].reverse().map((h,i) => (
@@ -293,10 +293,10 @@ export default function TaskDetail({ taskId, onClose, onUpdated }) {
                     <div className="activity-dot" />
                     <div className="activity-content">
                       <strong>{h.changedByName || 'System'}</strong> changed status{' '}
-                      <span style={{ color:'#64748b' }}>{h.fromStatus?.replace('_',' ') || '—'}</span>
+                      <span style={{ color:'var(--muted)' }}>{h.fromStatus?.replace('_',' ') || '—'}</span>
                       {' → '}
                       <span style={{ fontWeight:600, color: SCOLOR[h.toStatus] || '#64748b' }}>{h.toStatus?.replace('_',' ')}</span>
-                      {h.remark && <div style={{ fontSize:12, color:'#64748b', marginTop:2 }}>"{h.remark}"</div>}
+                      {h.remark && <div style={{ fontSize:12, color:'var(--muted)', marginTop:2 }}>"{h.remark}"</div>}
                       <div className="activity-time">
                         {new Date(h.changedAt).toLocaleString('en-IN',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}
                       </div>
@@ -315,7 +315,7 @@ export default function TaskDetail({ taskId, onClose, onUpdated }) {
 function InfoField({ label, value }) {
   return (
     <div>
-      <div style={{ fontSize:11, fontWeight:600, color:'#94a3b8', textTransform:'uppercase', letterSpacing:.5, marginBottom:3 }}>{label}</div>
+      <div style={{ fontSize:11, fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:.5, marginBottom:3 }}>{label}</div>
       <div style={{ fontSize:13, fontWeight:500 }}>{value}</div>
     </div>
   );

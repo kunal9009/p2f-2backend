@@ -163,7 +163,7 @@ export default function Dashboard() {
           ) : recentlyCompleted.map(t => (
             <div key={t._id} style={{ padding:'8px 0', borderBottom:'1px solid var(--border)', cursor:'pointer' }} onClick={() => navigate('/tasks?id='+t._id)}>
               <div style={{ fontSize:13, fontWeight:500 }}>{t.title}</div>
-              <div style={{ fontSize:11, color:'#64748b' }}>{t.taskId} · {t.project} · {t.completedAt ? new Date(t.completedAt).toLocaleDateString('en-IN',{day:'numeric',month:'short'}) : ''}</div>
+              <div style={{ fontSize:11, color:'var(--muted)' }}>{t.taskId} · {t.project} · {t.completedAt ? new Date(t.completedAt).toLocaleDateString('en-IN',{day:'numeric',month:'short'}) : ''}</div>
             </div>
           ))}
         </div>

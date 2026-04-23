@@ -9,7 +9,7 @@ const COLS = [
   { status: 'todo',        label: 'To Do',       color: '#64748b' },
   { status: 'in_progress', label: 'In Progress',  color: '#f59e0b' },
   { status: 'testing',     label: 'Testing',      color: '#8b5cf6' },
-  { status: 'on_hold',     label: 'On Hold',      color: '#94a3b8' },
+  { status: 'on_hold',     label: 'On Hold',      color: 'var(--muted)' },
   { status: 'completed',   label: 'Completed',    color: '#10b981' },
   { status: 'cancelled',   label: 'Cancelled',    color: '#ef4444' },
 ];
@@ -89,7 +89,7 @@ export default function Kanban() {
 
               <div className="kanban-col-body">
                 {(columns[col.status] || []).length === 0 && (
-                  <div style={{ padding:'16px 0', textAlign:'center', color:'#94a3b8', fontSize:13 }}>
+                  <div style={{ padding:'16px 0', textAlign:'center', color:'var(--muted)', fontSize:13 }}>
                     Drop tasks here
                   </div>
                 )}

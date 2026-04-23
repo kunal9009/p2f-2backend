@@ -36,7 +36,8 @@ const vendorProductRoutes = require('./src/routes/vendor/productRoutes');
 const app = express();
 
 // ─── DEBUG ENV CHECK ───
-console.log("ENV CHECK → MONGO_URI:", process.env.MONGO_URI);
+console.log("ENV CHECK → MONGODB_URI:", process.env.MONGODB_URI ? "[set]" : "NOT SET ← deploy will fail");
+console.log("ENV CHECK → PORT:", process.env.PORT || "(using default 3000)");
 
 // ─── ENSURE UPLOAD DIRECTORY EXISTS ───
 const uploadDir = process.env.UPLOAD_DIR || 'uploads';
@@ -102,11 +103,11 @@ app.get('/create-admin', async (req, res) => {
     }
 
     const user = new User({
-  name,
-  email,
-  password,
-  role: 'admin'
-});
+      name: 'Admin',
+      email,
+      password,
+      role: 'admin'
+    });
 
     await user.save();
 

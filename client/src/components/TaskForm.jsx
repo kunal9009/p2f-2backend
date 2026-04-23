@@ -7,8 +7,10 @@ const PRIORITIES = ['critical','high','medium','low'];
 
 export default function TaskForm({ taskId, defaultStatus, defaultDueDate, onClose, onSaved }) {
   const { toast }             = useToast();
-  const [users,   setUsers]   = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [users,    setUsers]    = useState([]);
+  const [projects, setProjects] = useState([]);
+  const [allTags,  setAllTags]  = useState([]);
+  const [loading,  setLoading]  = useState(true);
   const [saving,  setSaving]  = useState(false);
   const [error,   setError]   = useState('');
   const [form, setForm] = useState({
@@ -20,11 +22,15 @@ export default function TaskForm({ taskId, defaultStatus, defaultDueDate, onClos
 
   useEffect(() => {
     async function load() {
-      const [usersRes, taskRes] = await Promise.all([
+      const [usersRes, taskRes, projRes, tagsRes] = await Promise.all([
         api('/api/admin/users'),
         taskId ? api('/api/admin/tasks/' + taskId) : Promise.resolve({}),
+        api('/api/admin/tasks/projects'),
+        api('/api/admin/tasks/tags'),
       ]);
       if (usersRes.success) setUsers(usersRes.data || usersRes.users || []);
+      if (projRes.success)  setProjects(projRes.data || []);
+      if (tagsRes.success)  setAllTags(tagsRes.data || []);
       if (taskRes.success && taskRes.data) {
         const t = taskRes.data;
         setForm({
@@ -84,7 +90,7 @@ export default function TaskForm({ taskId, defaultStatus, defaultDueDate, onClos
     else             { setError(res.message || 'Save failed'); toast(res.message || 'Save failed', 'error'); }
   }
 
-  if (loading) return <div style={{ padding: 32, textAlign: 'center', color: '#64748b' }}>Loading…</div>;
+  if (loading) return <div style={{ padding: 32, textAlign: 'center', color: 'var(--muted)' }}>Loading…</div>;
 
   return (
     <form className="task-form" onSubmit={handleSubmit} style={{ padding: 0 }}>
@@ -117,7 +123,15 @@ export default function TaskForm({ taskId, defaultStatus, defaultDueDate, onClos
 
       <div className="form-group">
         <label>Project</label>
-        <input value={form.project} onChange={e => set('project', e.target.value)} placeholder="Project or team name" />
+        <input
+          list="project-suggestions"
+          value={form.project}
+          onChange={e => set('project', e.target.value)}
+          placeholder="Project or team name"
+        />
+        <datalist id="project-suggestions">
+          {projects.map(p => <option key={p} value={p} />)}
+        </datalist>
       </div>
 
       <div className="form-row">
@@ -133,7 +147,26 @@ export default function TaskForm({ taskId, defaultStatus, defaultDueDate, onClos
 
       <div className="form-group">
         <label>Tags (comma-separated)</label>
-        <input value={form.tags} onChange={e => set('tags', e.target.value)} placeholder="bug, feature, urgent" />
+        <input
+          value={form.tags}
+          onChange={e => set('tags', e.target.value)}
+          placeholder="bug, feature, urgent"
+        />
+        {allTags.length > 0 && (
+          <div style={{ display:'flex', flexWrap:'wrap', gap:4, marginTop:4 }}>
+            {allTags.filter(t => !form.tags.split(',').map(x=>x.trim()).includes(t)).slice(0,12).map(t => (
+              <span
+                key={t}
+                className="tag-chip"
+                style={{ cursor:'pointer' }}
+                title="Click to add"
+                onClick={() => set('tags', form.tags ? form.tags + ', ' + t : t)}
+              >
+                {t}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="form-row">

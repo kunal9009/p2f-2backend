@@ -157,7 +157,8 @@ exports.dashboard = async (req, res) => {
                   {
                     $and: [
                       { $lt: ['$dueDate', now] },
-                      { $nin: ['$status', [TASK_STATUS.COMPLETED, TASK_STATUS.CANCELLED]] },
+                      { $ne: ['$status', TASK_STATUS.COMPLETED] },
+                      { $ne: ['$status', TASK_STATUS.CANCELLED] },
                     ],
                   },
                   1,

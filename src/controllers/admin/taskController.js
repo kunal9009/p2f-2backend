@@ -695,6 +695,16 @@ exports.projects = async (req, res) => {
   }
 };
 
+// ─── GET /api/admin/tasks/tags ───
+exports.tags = async (req, res) => {
+  try {
+    const tags = await Task.distinct('tags', { tags: { $nin: [null, ''] } });
+    res.json({ success: true, data: tags.sort() });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
 // ─── GET /api/admin/tasks/scheduler-status ───
 exports.schedulerStatus = async (req, res) => {
   try {

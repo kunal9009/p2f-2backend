@@ -13,6 +13,7 @@ router.get('/export',    taskController.exportCsv);     // GET  /api/admin/tasks
 router.get('/activity',  taskController.activity);      // GET  /api/admin/tasks/activity
 router.get('/search',           taskController.search);          // GET  /api/admin/tasks/search
 router.get('/projects',         taskController.projects);        // GET  /api/admin/tasks/projects
+router.get('/tags',             taskController.tags);            // GET  /api/admin/tasks/tags
 router.get('/scheduler-status', taskController.schedulerStatus); // GET  /api/admin/tasks/scheduler-status
 router.post('/test-email',      taskController.testEmail);       // POST /api/admin/tasks/test-email
 

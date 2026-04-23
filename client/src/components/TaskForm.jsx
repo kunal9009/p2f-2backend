@@ -9,6 +9,7 @@ export default function TaskForm({ taskId, defaultStatus, defaultDueDate, onClos
   const { toast }             = useToast();
   const [users,    setUsers]    = useState([]);
   const [projects, setProjects] = useState([]);
+  const [allTags,  setAllTags]  = useState([]);
   const [loading,  setLoading]  = useState(true);
   const [saving,  setSaving]  = useState(false);
   const [error,   setError]   = useState('');
@@ -21,13 +22,15 @@ export default function TaskForm({ taskId, defaultStatus, defaultDueDate, onClos
 
   useEffect(() => {
     async function load() {
-      const [usersRes, taskRes, projRes] = await Promise.all([
+      const [usersRes, taskRes, projRes, tagsRes] = await Promise.all([
         api('/api/admin/users'),
         taskId ? api('/api/admin/tasks/' + taskId) : Promise.resolve({}),
         api('/api/admin/tasks/projects'),
+        api('/api/admin/tasks/tags'),
       ]);
       if (usersRes.success) setUsers(usersRes.data || usersRes.users || []);
       if (projRes.success)  setProjects(projRes.data || []);
+      if (tagsRes.success)  setAllTags(tagsRes.data || []);
       if (taskRes.success && taskRes.data) {
         const t = taskRes.data;
         setForm({
@@ -144,7 +147,26 @@ export default function TaskForm({ taskId, defaultStatus, defaultDueDate, onClos
 
       <div className="form-group">
         <label>Tags (comma-separated)</label>
-        <input value={form.tags} onChange={e => set('tags', e.target.value)} placeholder="bug, feature, urgent" />
+        <input
+          value={form.tags}
+          onChange={e => set('tags', e.target.value)}
+          placeholder="bug, feature, urgent"
+        />
+        {allTags.length > 0 && (
+          <div style={{ display:'flex', flexWrap:'wrap', gap:4, marginTop:4 }}>
+            {allTags.filter(t => !form.tags.split(',').map(x=>x.trim()).includes(t)).slice(0,12).map(t => (
+              <span
+                key={t}
+                className="tag-chip"
+                style={{ cursor:'pointer' }}
+                title="Click to add"
+                onClick={() => set('tags', form.tags ? form.tags + ', ' + t : t)}
+              >
+                {t}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="form-row">

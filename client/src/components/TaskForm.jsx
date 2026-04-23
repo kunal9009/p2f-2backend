@@ -7,8 +7,9 @@ const PRIORITIES = ['critical','high','medium','low'];
 
 export default function TaskForm({ taskId, defaultStatus, defaultDueDate, onClose, onSaved }) {
   const { toast }             = useToast();
-  const [users,   setUsers]   = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [users,    setUsers]    = useState([]);
+  const [projects, setProjects] = useState([]);
+  const [loading,  setLoading]  = useState(true);
   const [saving,  setSaving]  = useState(false);
   const [error,   setError]   = useState('');
   const [form, setForm] = useState({
@@ -20,11 +21,13 @@ export default function TaskForm({ taskId, defaultStatus, defaultDueDate, onClos
 
   useEffect(() => {
     async function load() {
-      const [usersRes, taskRes] = await Promise.all([
+      const [usersRes, taskRes, projRes] = await Promise.all([
         api('/api/admin/users'),
         taskId ? api('/api/admin/tasks/' + taskId) : Promise.resolve({}),
+        api('/api/admin/tasks/projects'),
       ]);
       if (usersRes.success) setUsers(usersRes.data || usersRes.users || []);
+      if (projRes.success)  setProjects(projRes.data || []);
       if (taskRes.success && taskRes.data) {
         const t = taskRes.data;
         setForm({
@@ -117,7 +120,15 @@ export default function TaskForm({ taskId, defaultStatus, defaultDueDate, onClos
 
       <div className="form-group">
         <label>Project</label>
-        <input value={form.project} onChange={e => set('project', e.target.value)} placeholder="Project or team name" />
+        <input
+          list="project-suggestions"
+          value={form.project}
+          onChange={e => set('project', e.target.value)}
+          placeholder="Project or team name"
+        />
+        <datalist id="project-suggestions">
+          {projects.map(p => <option key={p} value={p} />)}
+        </datalist>
       </div>
 
       <div className="form-row">

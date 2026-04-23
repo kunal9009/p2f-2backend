@@ -30,6 +30,7 @@ export default function Tasks() {
 
   const [tasks,    setTasks]    = useState([]);
   const [users,    setUsers]    = useState([]);
+  const [projects, setProjects] = useState([]);
   const [total,    setTotal]    = useState(0);
   const [page,     setPage]     = useState(1);
   const [sort,     setSort]     = useState('-createdAt');
@@ -75,8 +76,12 @@ export default function Tasks() {
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
-    api('/api/admin/users').then(res => {
-      if (res.success) setUsers(res.data || res.users || []);
+    Promise.all([
+      api('/api/admin/users'),
+      api('/api/admin/tasks/projects'),
+    ]).then(([uRes, pRes]) => {
+      if (uRes.success) setUsers(uRes.data || uRes.users || []);
+      if (pRes.success) setProjects(pRes.data || []);
     });
   }, []);
 
@@ -225,7 +230,11 @@ export default function Tasks() {
           {PRIORITIES.map(p => <option key={p} value={p}>{p}</option>)}
         </select>
         <input className="input-sm" placeholder="Project…" value={filters.project}
-          onChange={e => setFilter('project', e.target.value)} style={{ width:100 }} />
+          onChange={e => setFilter('project', e.target.value)} style={{ width:100 }}
+          list="task-project-list" />
+        <datalist id="task-project-list">
+          {projects.map(p => <option key={p} value={p} />)}
+        </datalist>
         <input className="input-sm" placeholder="Tag…" value={filters.tag}
           onChange={e => setFilter('tag', e.target.value)} style={{ width:80 }} />
         <select className="input-sm" value={filters.assignedTo} onChange={e => setFilter('assignedTo', e.target.value)} style={{ width:130 }}>

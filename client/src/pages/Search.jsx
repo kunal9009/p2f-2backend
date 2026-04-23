@@ -2,13 +2,13 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { api } from '../api';
 
-const MATCH_STYLE = {
-  taskId:      { label: 'ID',          bg:'#dbeafe', color:'#1d4ed8' },
-  title:       { label: 'Title',       bg:'#dcfce7', color:'#166534' },
-  project:     { label: 'Project',     bg:'#fef3c7', color:'#92400e' },
-  tag:         { label: 'Tag',         bg:'#ede9fe', color:'#7c3aed' },
-  description: { label: 'Description', bg:'#fce7f3', color:'#9d174d' },
-  comment:     { label: 'Comment',     bg:'#e0f2fe', color:'#075985' },
+const MATCH_META = {
+  taskId:      { label: 'ID',          cls: 'match-id'      },
+  title:       { label: 'Title',       cls: 'match-title'   },
+  project:     { label: 'Project',     cls: 'match-project' },
+  tag:         { label: 'Tag',         cls: 'match-tag'     },
+  description: { label: 'Description', cls: 'match-desc'    },
+  comment:     { label: 'Comment',     cls: 'match-comment' },
 };
 const PCOLOR = { critical:'#ef4444', high:'#f97316', medium:'#3b82f6', low:'#10b981' };
 const SCOLOR = { todo:'#64748b', in_progress:'#f59e0b', testing:'#8b5cf6', on_hold:'#94a3b8', completed:'#10b981', cancelled:'#ef4444' };
@@ -120,13 +120,13 @@ export default function Search() {
       ) : (
         <div className="search-results-list">
           {filtered.map(t => {
-            const ms = MATCH_STYLE[t.matchIn] || { label: t.matchIn, bg:'var(--bg)', color:'var(--muted)' };
+            const ms = MATCH_META[t.matchIn] || { label: t.matchIn, cls: '' };
             const due = t.dueDate ? new Date(t.dueDate).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}) : '';
             return (
               <div key={t._id} className="result-card" onClick={() => navigate('/tasks?id=' + t._id)}>
                 <div className="result-card-header">
                   <span className="result-task-id">{t.taskId}</span>
-                  <span className="match-badge" style={{ background:ms.bg, color:ms.color }}>{ms.label}</span>
+                  <span className={`match-badge ${ms.cls}`}>{ms.label}</span>
                   <span className="priority-badge" style={{ background:PCOLOR[t.priority]+'20', color:PCOLOR[t.priority] }}>{t.priority}</span>
                   <span className="status-badge" style={{ background:SCOLOR[t.status]+'20', color:SCOLOR[t.status] }}>{t.status.replace('_',' ')}</span>
                   {due && <span className="result-date">📅 {due}</span>}

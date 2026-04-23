@@ -865,6 +865,7 @@ input:focus, select:focus, textarea:focus {
 .match-tag     { background: #ede9fe; color: #7c3aed; }
 .match-desc    { background: #fce7f3; color: #9d174d; }
 .match-comment { background: #e0f2fe; color: #075985; }
+.role-badge    { background: #dbeafe; color: #1d4ed8; }
 
 /* Search empty state */
 .search-empty-state {
@@ -1040,6 +1041,29 @@ a.nav-item { text-decoration: none; }
 :root[data-theme="dark"] .env-row code { background: #263248; color: #a5b4fc; }
 :root[data-theme="dark"] .result-snippet { background: #263248; border-color: #334155; }
 :root[data-theme="dark"] .btn-status { background: #263248; }
+:root[data-theme="dark"] .tag-inline  { background: #312e81; color: #a5b4fc; }
+
+/* Status/priority badge dark mode */
+:root[data-theme="dark"] .badge-todo        { background: #1e293b; color: #94a3b8; }
+:root[data-theme="dark"] .badge-in_progress { background: #1e3a5f; color: #93c5fd; }
+:root[data-theme="dark"] .badge-testing     { background: #2e1065; color: #c4b5fd; }
+:root[data-theme="dark"] .badge-completed   { background: #14532d; color: #86efac; }
+:root[data-theme="dark"] .badge-on_hold     { background: #3b0764; color: #d8b4fe; }
+:root[data-theme="dark"] .badge-cancelled   { background: #450a0a; color: #fca5a5; }
+:root[data-theme="dark"] .badge-critical    { background: #450a0a; color: #fca5a5; }
+:root[data-theme="dark"] .badge-high        { background: #431407; color: #fdba74; }
+:root[data-theme="dark"] .badge-medium      { background: #422006; color: #fcd34d; }
+:root[data-theme="dark"] .activity-status  { background: #1e3a5f; }
+:root[data-theme="dark"] .activity-comment { background: #14532d; }
+
+/* Search match badge dark mode */
+:root[data-theme="dark"] .match-id      { background: #1e3a5f; color: #93c5fd; }
+:root[data-theme="dark"] .match-title   { background: #14532d; color: #86efac; }
+:root[data-theme="dark"] .match-project { background: #451a03; color: #fcd34d; }
+:root[data-theme="dark"] .match-tag     { background: #2e1065; color: #c4b5fd; }
+:root[data-theme="dark"] .match-desc    { background: #500724; color: #f9a8d4; }
+:root[data-theme="dark"] .match-comment { background: #082f49; color: #7dd3fc; }
+:root[data-theme="dark"] .role-badge    { background: #1e3a5f; color: #93c5fd; }
 
 /* Ctrl+K badge in nav */
 .nav-shortcut {

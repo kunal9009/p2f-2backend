@@ -73,7 +73,7 @@ export default function Users() {
                 <tr key={u._id||u.id}>
                   <td style={{ fontWeight:500 }}>{u.name}</td>
                   <td style={{ color:'var(--muted)',fontSize:13 }}>{u.email}</td>
-                  <td><span className="priority-badge" style={{ background:'#dbeafe',color:'#1d4ed8' }}>{u.role}</span></td>
+                  <td><span className="priority-badge role-badge">{u.role}</span></td>
                   <td>
                     <span className="schedule-badge" style={{ background: u.isActive?'#dcfce7':'#fee2e2', color: u.isActive?'#166534':'#991b1b' }}>
                       {u.isActive ? 'Active' : 'Inactive'}

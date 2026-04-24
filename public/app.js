@@ -65,10 +65,25 @@ async function loadNotifications() {
 }
 
 function updateNotifBadge(count) {
-  const badge = document.getElementById('notifBadge');
-  if (!badge) return;
-  badge.textContent = count;
-  badge.style.display = count > 0 ? 'flex' : 'none';
+  ['notifBadge', 'notifBadgeMobile'].forEach(id => {
+    const badge = document.getElementById(id);
+    if (!badge) return;
+    badge.textContent = count;
+    badge.style.display = count > 0 ? 'flex' : 'none';
+  });
+}
+
+/* ── Mobile sidebar toggle ── */
+function toggleSidebar() {
+  const sb = document.getElementById('sidebarEl');
+  const bd = document.getElementById('sidebarBackdrop');
+  if (!sb) return;
+  const isOpen = sb.classList.toggle('open');
+  if (bd) bd.classList.toggle('open', isOpen);
+}
+function closeSidebar() {
+  document.getElementById('sidebarEl')?.classList.remove('open');
+  document.getElementById('sidebarBackdrop')?.classList.remove('open');
 }
 
 async function toggleNotifPanel() {
@@ -139,15 +154,39 @@ function renderSidebar(active) {
 
   const visibleNav = nav.filter(n => !n.adminOnly || user.role === 'admin');
 
+  const activeItem = visibleNav.find(n => n.id === active);
+  const pageTitle = activeItem ? activeItem.label : 'MahattaART';
+
   document.getElementById('sidebar').innerHTML = `
-    <aside class="sidebar">
+    <!-- Mobile topbar (shown on small screens) -->
+    <div class="mobile-topbar">
+      <button class="hamburger-btn" onclick="toggleSidebar()" aria-label="Menu">☰</button>
+      <span class="mobile-topbar-title">${pageTitle}</span>
+      <div class="notif-bell-wrap" style="margin-left:auto;position:relative">
+        <button id="notifBellMobile" class="notif-bell" onclick="toggleNotifPanel()" title="Notifications"
+                style="background:var(--primary-50);border-color:var(--border);color:var(--primary);">
+          🔔
+          <span id="notifBadgeMobile" class="notif-badge" style="display:none">0</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="sidebar-backdrop" id="sidebarBackdrop" onclick="closeSidebar()"></div>
+
+    <aside class="sidebar" id="sidebarEl">
       <div class="sidebar-logo">
-        <svg width="32" height="32" viewBox="0 0 40 40" fill="none">
-          <rect width="40" height="40" rx="10" fill="#1a1a2e"/>
-          <rect x="8"  y="8"  width="10" height="10" rx="2" fill="#e94560"/>
-          <rect x="22" y="8"  width="10" height="10" rx="2" fill="#0f3460"/>
-          <rect x="8"  y="22" width="10" height="10" rx="2" fill="#0f3460"/>
-          <rect x="22" y="22" width="10" height="10" rx="2" fill="#e94560"/>
+        <svg width="32" height="32" viewBox="0 0 40 40" fill="none" aria-hidden="true">
+          <defs>
+            <linearGradient id="lg1" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="#4f46e5"/>
+              <stop offset="100%" stop-color="#ec4899"/>
+            </linearGradient>
+          </defs>
+          <rect width="40" height="40" rx="10" fill="url(#lg1)"/>
+          <rect x="8"  y="8"  width="10" height="10" rx="2" fill="#fff" opacity=".95"/>
+          <rect x="22" y="8"  width="10" height="10" rx="2" fill="#fff" opacity=".55"/>
+          <rect x="8"  y="22" width="10" height="10" rx="2" fill="#fff" opacity=".55"/>
+          <rect x="22" y="22" width="10" height="10" rx="2" fill="#fff" opacity=".95"/>
         </svg>
         <span>MahattaART</span>
         <div class="notif-bell-wrap" style="margin-left:auto;position:relative">

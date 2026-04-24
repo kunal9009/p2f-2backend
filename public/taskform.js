@@ -48,80 +48,96 @@ function taskFormHTML(task, users) {
     <form id="taskForm" class="task-form" onsubmit="submitTaskForm(event)">
       <input type="hidden" id="editTaskId" value="${v._id || ''}" />
 
-      <div class="form-row">
-        <div class="form-group flex-2">
-          <label>Title <span class="req">*</span></label>
-          <input type="text" id="fTitle" value="${esc(v.title)}" required
-                 placeholder="What needs to be done?" />
+      <!-- ── BASIC INFO ── -->
+      <div class="form-section">
+        <div class="form-section-title">Basic Info</div>
+
+        <div class="form-row">
+          <div class="form-group flex-2">
+            <label>Title <span class="req">*</span></label>
+            <input type="text" id="fTitle" value="${esc(v.title)}" required
+                   placeholder="What needs to be done?" />
+          </div>
+          <div class="form-group">
+            <label>Project</label>
+            <input type="text" id="fProject" value="${esc(v.project || 'MahattaART')}"
+                   placeholder="MahattaART" />
+          </div>
         </div>
+
         <div class="form-group">
-          <label>Project</label>
-          <input type="text" id="fProject" value="${esc(v.project || 'MahattaART')}"
-                 placeholder="MahattaART" />
+          <label>Description</label>
+          <textarea id="fDescription" rows="3"
+                    placeholder="Add details, acceptance criteria, links…">${esc(v.description)}</textarea>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>Status</label>
+            <select id="fStatus">
+              ${['todo','in_progress','testing','completed','on_hold','cancelled'].map(s =>
+                `<option value="${s}" ${(v.status||'todo')===s?'selected':''}>${s.replace('_',' ')}</option>`
+              ).join('')}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Priority</label>
+            <select id="fPriority">
+              ${['critical','high','medium','low'].map(p =>
+                `<option value="${p}" ${(v.priority||'medium')===p?'selected':''}>${p}</option>`
+              ).join('')}
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Tags <span class="form-hint-inline">(comma-separated)</span></label>
+          <input type="text" id="fTags" value="${esc((v.tags || []).join(', '))}"
+                 placeholder="design, backend, urgent" />
         </div>
       </div>
 
-      <div class="form-group">
-        <label>Description</label>
-        <textarea id="fDescription" rows="3"
-                  placeholder="Add details, acceptance criteria, links…">${esc(v.description)}</textarea>
-      </div>
+      <!-- ── SCHEDULE ── -->
+      <div class="form-section">
+        <div class="form-section-title">Schedule & Effort</div>
 
-      <div class="form-row">
-        <div class="form-group">
-          <label>Status</label>
-          <select id="fStatus">
-            ${['todo','in_progress','testing','completed','on_hold','cancelled'].map(s =>
-              `<option value="${s}" ${(v.status||'todo')===s?'selected':''}>${s.replace('_',' ')}</option>`
-            ).join('')}
-          </select>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Due Date</label>
+            <input type="datetime-local" id="fDueDate" value="${toDate(v.dueDate)}" />
+          </div>
+          <div class="form-group">
+            <label>Reminder Date</label>
+            <input type="datetime-local" id="fReminderDate" value="${toDate(v.reminderDate)}" />
+          </div>
         </div>
-        <div class="form-group">
-          <label>Priority</label>
-          <select id="fPriority">
-            ${['critical','high','medium','low'].map(p =>
-              `<option value="${p}" ${(v.priority||'medium')===p?'selected':''}>${p}</option>`
-            ).join('')}
-          </select>
-        </div>
-      </div>
 
-      <div class="form-row">
-        <div class="form-group">
-          <label>Due Date</label>
-          <input type="datetime-local" id="fDueDate" value="${toDate(v.dueDate)}" />
-        </div>
-        <div class="form-group">
-          <label>Reminder Date</label>
-          <input type="datetime-local" id="fReminderDate" value="${toDate(v.reminderDate)}" />
-        </div>
-        <div class="form-group">
-          <label>Est. Hours</label>
-          <input type="number" id="fEstHours" value="${v.estimatedHours || ''}"
-                 min="0" step="0.5" placeholder="e.g. 4" />
-        </div>
-        <div class="form-group">
-          <label>Actual Hours</label>
-          <input type="number" id="fActHours" value="${v.actualHours || ''}"
-                 min="0" step="0.5" placeholder="e.g. 3.5" />
+        <div class="form-row">
+          <div class="form-group">
+            <label>Est. Hours</label>
+            <input type="number" id="fEstHours" value="${v.estimatedHours || ''}"
+                   min="0" step="0.5" placeholder="e.g. 4" />
+          </div>
+          <div class="form-group">
+            <label>Actual Hours</label>
+            <input type="number" id="fActHours" value="${v.actualHours || ''}"
+                   min="0" step="0.5" placeholder="e.g. 3.5" />
+          </div>
         </div>
       </div>
 
-      <div class="form-group">
-        <label>Tags <span class="form-hint-inline">(comma-separated)</span></label>
-        <input type="text" id="fTags" value="${esc((v.tags || []).join(', '))}"
-               placeholder="design, backend, urgent" />
-      </div>
+      <!-- ── PEOPLE ── -->
+      <div class="form-section">
+        <div class="form-section-title">Assignees</div>
 
-      <div class="form-group">
-        <label>Assign To Team Members</label>
-        ${userCheckboxes
-          ? `<div class="user-check-grid">${userCheckboxes}</div>`
-          : `<p class="text-muted" style="font-size:13px">No team members found.</p>`}
-      </div>
+        <div class="form-group">
+          <label>Assign to team members</label>
+          ${userCheckboxes
+            ? `<div class="user-check-grid">${userCheckboxes}</div>`
+            : `<p class="text-muted" style="font-size:13px">No team members found.</p>`}
+        </div>
 
-      <div class="form-group">
-        <label class="checkbox-label">
+        <label class="checkbox-label" style="margin-top:4px">
           <input type="checkbox" id="fEmailNotif"
                  ${v.emailNotificationsEnabled !== false ? 'checked' : ''} />
           Send email notifications to assignees
@@ -133,7 +149,7 @@ function taskFormHTML(task, users) {
       <div class="form-actions">
         <button type="button" class="btn btn-secondary" onclick="closeTaskModal()">Cancel</button>
         <button type="submit" class="btn btn-primary" id="submitTaskBtn">
-          ${task ? 'Save Changes' : 'Create Task'}
+          ${task ? '💾 Save Changes' : '✨ Create Task'}
         </button>
       </div>
     </form>`;

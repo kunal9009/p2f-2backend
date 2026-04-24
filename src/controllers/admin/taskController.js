@@ -294,7 +294,7 @@ exports.create = async (req, res) => {
   try {
     const {
       title, description, project, status, priority,
-      assignedTo, dueDate, reminderDate,
+      assignedTo, developers, dueDate, reminderDate,
       estimatedHours, tags, emailNotificationsEnabled,
     } = req.body;
 
@@ -305,6 +305,7 @@ exports.create = async (req, res) => {
       status: status || TASK_STATUS.TODO,
       priority: priority || TASK_PRIORITY.MEDIUM,
       assignedTo: assignedTo || [],
+      developers: developers || [],
       assignedById: req.user.id,
       assignedByName: req.user.name,
       dueDate: dueDate ? new Date(dueDate) : undefined,
@@ -373,6 +374,11 @@ exports.update = async (req, res) => {
           await emailService.sendTaskAssigned(task, assignee.email, assignee.name);
         }
       }
+    }
+
+    // Update developers
+    if (req.body.developers !== undefined) {
+      task.developers = req.body.developers;
     }
 
     // Reset reminder flags if dates changed

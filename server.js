@@ -26,6 +26,7 @@ const adminUserRoutes = require('./src/routes/admin/userRoutes');
 const adminPricingRoutes = require('./src/routes/admin/pricingRoutes');
 const adminReportRoutes = require('./src/routes/admin/reportRoutes');
 const adminTaskRoutes  = require('./src/routes/admin/taskRoutes');
+const adminAiRoutes    = require('./src/routes/admin/aiRoutes');
 
 // ─── VENDOR ROUTES ───
 const vendorAuthRoutes = require('./src/routes/vendor/authRoutes');
@@ -132,6 +133,7 @@ app.use('/api/admin/users', adminUserRoutes);
 app.use('/api/admin/pricing', adminPricingRoutes);
 app.use('/api/admin/reports', adminReportRoutes);
 app.use('/api/admin/tasks', adminTaskRoutes);
+app.use('/api/admin/ai',    adminAiRoutes);
 
 // ─── VENDOR API ───
 app.use('/api/vendor/auth', vendorAuthRoutes);

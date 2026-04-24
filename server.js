@@ -75,16 +75,15 @@ app.get('/tasks-ui', (req, res) => res.redirect('/tasks-ui/index.html'));
 
 // React UI
 const reactDist = path.join(__dirname, 'client-dist');
-// Only files under /assets/ are fingerprinted by Vite; everything else
-// (index.html, favicon, manifest, service workers) must revalidate so a
-// new deploy is picked up without a hard refresh.
+// Hashed assets (index-*.js/css) are fingerprinted so they can cache forever;
+// index.html must never be cached or the browser pins to stale asset hashes
+// across deploys.
 app.use('/app', express.static(reactDist, {
   setHeaders(res, filePath) {
-    const rel = path.relative(reactDist, filePath);
-    if (rel === 'assets' || rel.startsWith('assets' + path.sep)) {
-      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
-    } else {
+    if (filePath.endsWith('index.html')) {
       res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    } else {
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
     }
   },
 }));

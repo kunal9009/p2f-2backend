@@ -13,6 +13,7 @@ const NAV = [
   { id: 'team',      label: 'Team',         icon: '👥', to: '/team'     },
   { id: 'reports',   label: 'Reports',      icon: '📈', to: '/reports'  },
   { id: 'calendar',  label: 'Calendar',     icon: '📅', to: '/calendar' },
+  { id: 'ai-chat',   label: 'AI Assistant', icon: '✨', to: '/ai-chat'  },
   { id: 'users',     label: 'Users',        icon: '👤', to: '/users',   adminOnly: true },
   { id: 'settings',  label: 'Settings',     icon: '⚙️', to: '/settings' },
 ];

@@ -16,6 +16,20 @@ export default function TaskDetail({ taskId, onClose, onUpdated }) {
   const [loading,   setLoading]   = useState(true);
   const [editing,   setEditing]   = useState(false);
   const [comment,   setComment]   = useState('');
+  const [summary,     setSummary]     = useState('');
+  const [summarizing, setSummarizing] = useState(false);
+
+  async function summarizeComments() {
+    setSummarizing(true);
+    setSummary('');
+    try {
+      const res = await api('/api/admin/ai/summarize-comments', 'POST', { taskId });
+      if (res.success) setSummary(res.data.summary);
+      else toast(res.message || 'AI unavailable', 'error');
+    } finally {
+      setSummarizing(false);
+    }
+  }
   const [posting,   setPosting]   = useState(false);
   const [tab,       setTab]       = useState('details');
   const [confirm,   setConfirm]   = useState(null); // { message, onConfirm }
@@ -241,6 +255,24 @@ export default function TaskDetail({ taskId, onClose, onUpdated }) {
 
         {tab === 'comments' && (
           <div>
+            {(task.comments||[]).length >= 2 && (
+              <div style={{ marginBottom: 14 }}>
+                <button
+                  type="button"
+                  className="btn-ai-inline"
+                  disabled={summarizing}
+                  onClick={summarizeComments}
+                >
+                  {summarizing ? 'Summarizing…' : '✨ Summarize thread'}
+                </button>
+                {summary && (
+                  <div className="ai-summary-box">
+                    <div className="ai-summary-title">AI Summary</div>
+                    <div style={{ whiteSpace:'pre-wrap', fontSize:13, lineHeight:1.55 }}>{summary}</div>
+                  </div>
+                )}
+              </div>
+            )}
             {(task.comments||[]).length === 0 ? (
               <p style={{ color:'var(--muted)', fontSize:14 }}>No comments yet.</p>
             ) : (

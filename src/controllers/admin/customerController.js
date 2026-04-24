@@ -1,4 +1,5 @@
 const Customer = require('../../models/Customer');
+const Order = require('../../models/Order');
 const { generateCustomerId } = require('../../utils/helpers');
 
 // GET /api/admin/customers
@@ -82,6 +83,51 @@ exports.remove = async (req, res) => {
     );
     if (!customer) return res.status(404).json({ success: false, message: 'Customer not found' });
     res.json({ success: true, message: 'Customer deactivated' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// PATCH /api/admin/customers/:id/reactivate
+exports.reactivate = async (req, res) => {
+  try {
+    const customer = await Customer.findByIdAndUpdate(
+      req.params.id,
+      { isActive: true },
+      { new: true }
+    );
+    if (!customer) return res.status(404).json({ success: false, message: 'Customer not found' });
+    res.json({ success: true, message: 'Customer reactivated', data: customer });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// GET /api/admin/customers/:id/orders
+exports.getOrders = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 20;
+    const skip = (page - 1) * limit;
+
+    const filter = { customerId: req.params.id };
+    if (req.query.status) filter.status = req.query.status;
+
+    const [orders, total] = await Promise.all([
+      Order.find(filter)
+        .select('orderId status paymentStatus totalAmount createdAt assignedVendorId shipmentId')
+        .populate('assignedVendorId', 'name')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit),
+      Order.countDocuments(filter),
+    ]);
+
+    res.json({
+      success: true,
+      data: orders,
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+    });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

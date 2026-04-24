@@ -13,10 +13,22 @@ exports.list = async (req, res) => {
     if (req.query.source) filter.source = req.query.source;
     if (req.query.paymentStatus) filter.paymentStatus = req.query.paymentStatus;
     if (req.query.customerId) filter.customerId = req.query.customerId;
+    if (req.query.assignedVendorId) filter.assignedVendorId = req.query.assignedVendorId;
+    if (req.query.from || req.query.to) {
+      filter.createdAt = {};
+      if (req.query.from) filter.createdAt.$gte = new Date(req.query.from);
+      if (req.query.to) {
+        const to = new Date(req.query.to);
+        to.setHours(23, 59, 59, 999);
+        filter.createdAt.$lte = to;
+      }
+    }
     if (req.query.search) {
       filter.$or = [
         { orderId: { $regex: req.query.search, $options: 'i' } },
         { customerName: { $regex: req.query.search, $options: 'i' } },
+        { customerPhone: { $regex: req.query.search, $options: 'i' } },
+        { customerEmail: { $regex: req.query.search, $options: 'i' } },
       ];
     }
 
@@ -51,6 +63,19 @@ exports.getById = async (req, res) => {
 
     if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
     res.json({ success: true, data: order });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// GET /api/admin/orders/:id/history — full status audit trail
+exports.getHistory = async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id)
+      .select('orderId status statusHistory')
+      .populate('statusHistory.changedBy', 'name email role');
+    if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+    res.json({ success: true, data: { orderId: order.orderId, currentStatus: order.status, history: order.statusHistory } });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -141,6 +166,33 @@ exports.assignVendor = async (req, res) => {
     );
     if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
     res.json({ success: true, data: order });
+  } catch (err) {
+    res.status(400).json({ success: false, message: err.message });
+  }
+};
+
+// PATCH /api/admin/orders/bulk-assign-vendor
+// Body: { orderIds: [...], vendorId: '...' }
+exports.bulkAssignVendor = async (req, res) => {
+  try {
+    const { orderIds, vendorId } = req.body;
+    if (!Array.isArray(orderIds) || orderIds.length === 0) {
+      return res.status(400).json({ success: false, message: '`orderIds` must be a non-empty array' });
+    }
+    if (!vendorId) {
+      return res.status(400).json({ success: false, message: '`vendorId` is required' });
+    }
+
+    const result = await Order.updateMany(
+      { _id: { $in: orderIds } },
+      { assignedVendorId: vendorId }
+    );
+
+    res.json({
+      success: true,
+      message: `${result.modifiedCount} order(s) assigned to vendor`,
+      data: { matched: result.matchedCount, modified: result.modifiedCount },
+    });
   } catch (err) {
     res.status(400).json({ success: false, message: err.message });
   }

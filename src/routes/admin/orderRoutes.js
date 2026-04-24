@@ -12,9 +12,11 @@ router.post('/', orderController.create);
 router.put('/:id', orderController.update);
 
 // Status pipeline
+router.get('/:id/history', orderController.getHistory);
 router.patch('/:id/status', orderController.updateStatus);
 
 // Assignment & payment
+router.patch('/bulk-assign-vendor', orderController.bulkAssignVendor);
 router.patch('/:id/assign-vendor', orderController.assignVendor);
 router.patch('/:id/payment', orderController.updatePayment);
 

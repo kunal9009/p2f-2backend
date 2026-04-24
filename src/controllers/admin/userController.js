@@ -157,3 +157,14 @@ exports.remove = async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 };
+
+// PATCH /api/admin/users/:id/reactivate
+exports.reactivate = async (req, res) => {
+  try {
+    const user = await User.findByIdAndUpdate(req.params.id, { isActive: true }, { new: true });
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+    res.json({ success: true, message: 'User reactivated', data: { id: user._id, name: user.name, email: user.email, role: user.role } });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};

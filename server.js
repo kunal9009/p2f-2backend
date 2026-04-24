@@ -1,9 +1,12 @@
 require('dotenv').config();
+const validateEnv = require('./src/config/validateEnv');
+validateEnv(); // Exits immediately if JWT_SECRET or MONGODB_URI are missing
 
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
+const compression = require('compression');
 const path = require('path');
 const fs = require('fs');
 
@@ -25,6 +28,8 @@ const adminInvoiceRoutes = require('./src/routes/admin/invoiceRoutes');
 const adminUserRoutes = require('./src/routes/admin/userRoutes');
 const adminPricingRoutes = require('./src/routes/admin/pricingRoutes');
 const adminReportRoutes = require('./src/routes/admin/reportRoutes');
+const adminCatalogRoutes = require('./src/routes/admin/catalogRoutes');
+const adminVendorPaymentRoutes = require('./src/routes/admin/vendorPaymentRoutes');
 const adminTaskRoutes  = require('./src/routes/admin/taskRoutes');
 const adminAiRoutes    = require('./src/routes/admin/aiRoutes');
 
@@ -33,6 +38,7 @@ const vendorAuthRoutes = require('./src/routes/vendor/authRoutes');
 const vendorOrderRoutes = require('./src/routes/vendor/orderRoutes');
 const vendorShipmentRoutes = require('./src/routes/vendor/shipmentRoutes');
 const vendorProductRoutes = require('./src/routes/vendor/productRoutes');
+const vendorPaymentRoutes = require('./src/routes/vendor/paymentRoutes');
 
 const app = express();
 
@@ -48,6 +54,7 @@ if (!fs.existsSync(uploadDir)) {
 
 // ─── MIDDLEWARE ───
 app.use(helmet());
+app.use(compression()); // gzip all JSON responses
 app.use(cors({
   origin: process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : '*',
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -145,6 +152,8 @@ app.use('/api/admin/invoices', adminInvoiceRoutes);
 app.use('/api/admin/users', adminUserRoutes);
 app.use('/api/admin/pricing', adminPricingRoutes);
 app.use('/api/admin/reports', adminReportRoutes);
+app.use('/api/admin/catalog', adminCatalogRoutes);
+app.use('/api/admin/vendor-payments', adminVendorPaymentRoutes);
 app.use('/api/admin/tasks', adminTaskRoutes);
 app.use('/api/admin/ai',    adminAiRoutes);
 
@@ -153,6 +162,7 @@ app.use('/api/vendor/auth', vendorAuthRoutes);
 app.use('/api/vendor/orders', vendorOrderRoutes);
 app.use('/api/vendor/shipments', vendorShipmentRoutes);
 app.use('/api/vendor/products', vendorProductRoutes);
+app.use('/api/vendor/payments', vendorPaymentRoutes);
 
 // ─── 404 ───
 app.use((req, res) => {
@@ -162,7 +172,20 @@ app.use((req, res) => {
   });
 });
 
-// ─── ERROR HANDLER ───
+// ─── MULTER ERROR HANDLER (must come before generic error handler) ───
+app.use((err, req, res, next) => {
+  if (err.name === 'MulterError') {
+    const messages = {
+      LIMIT_FILE_SIZE: `File too large. Maximum size is ${(parseInt(process.env.MAX_FILE_SIZE, 10) || 10485760) / 1048576}MB`,
+      LIMIT_FILE_COUNT: 'Too many files uploaded at once',
+      LIMIT_UNEXPECTED_FILE: `Unexpected field: ${err.field}`,
+    };
+    return res.status(400).json({ success: false, message: messages[err.code] || err.message });
+  }
+  next(err);
+});
+
+// ─── GLOBAL ERROR HANDLER ───
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(err.statusCode || 500).json({
@@ -176,10 +199,29 @@ const PORT = process.env.PORT || 3000;
 
 connectDB()
   .then(() => {
-    startScheduler();
-    app.listen(PORT, () => {
+    const server = app.listen(PORT, () => {
       console.log(`MahattaART backend running on port ${PORT}`);
     });
+
+    // ─── GRACEFUL SHUTDOWN ───
+    const shutdown = (signal) => {
+      console.log(`\n${signal} received — shutting down gracefully...`);
+      server.close(() => {
+        console.log('HTTP server closed');
+        require('mongoose').connection.close(false).then(() => {
+          console.log('MongoDB connection closed');
+          process.exit(0);
+        });
+      });
+      // Force exit if graceful shutdown takes too long
+      setTimeout(() => {
+        console.error('Graceful shutdown timed out — forcing exit');
+        process.exit(1);
+      }, 10000);
+    };
+
+    process.on('SIGTERM', () => shutdown('SIGTERM'));
+    process.on('SIGINT', () => shutdown('SIGINT'));
   })
   .catch((err) => {
     console.error('DB connection failed:', err.message);

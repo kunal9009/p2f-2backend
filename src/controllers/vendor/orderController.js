@@ -11,6 +11,15 @@ exports.list = async (req, res) => {
 
     const filter = { assignedVendorId: req.user.vendorId };
     if (req.query.status) filter.status = req.query.status;
+    if (req.query.from || req.query.to) {
+      filter.createdAt = {};
+      if (req.query.from) filter.createdAt.$gte = new Date(req.query.from);
+      if (req.query.to) {
+        const to = new Date(req.query.to);
+        to.setHours(23, 59, 59, 999);
+        filter.createdAt.$lte = to;
+      }
+    }
     if (req.query.search) {
       filter.$or = [
         { orderId: { $regex: req.query.search, $options: 'i' } },

@@ -11,6 +11,8 @@ const loginRules = [
 ];
 
 router.post('/login', authLimiter, loginRules, validate, authController.login);
+router.post('/refresh', protect, authController.refresh);
 router.get('/me', protect, authController.getMe);
+router.patch('/change-password', protect, authController.changePassword);
 
 module.exports = router;

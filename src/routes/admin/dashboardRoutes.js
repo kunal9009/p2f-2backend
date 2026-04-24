@@ -6,5 +6,6 @@ router.use(protect, adminOrWarehouse);
 
 router.get('/stats', dashboardController.getStats);
 router.get('/recent-orders', dashboardController.recentOrders);
+router.get('/pipeline', dashboardController.pipeline);
 
 module.exports = router;

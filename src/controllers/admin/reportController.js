@@ -1,6 +1,7 @@
 const Order = require('../../models/Order');
 const Invoice = require('../../models/Invoice');
 const { ORDER_STATUS } = require('../../config/constants');
+const { sendCsv } = require('../../utils/csvExport');
 
 /**
  * Helper: parse ?from and ?to query params into Date range filter.
@@ -245,6 +246,110 @@ exports.vendorPerformance = async (req, res) => {
         pipelineBreakdown: pipeline,
       },
     });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// ─────────────────────────────────────────────
+// GET /api/admin/reports/export/orders
+// Query: ?from=&to=&status=&source=
+// Streams a CSV file download of all matching orders
+// ─────────────────────────────────────────────
+exports.exportOrders = async (req, res) => {
+  try {
+    const { from, to } = getDateRange(req.query);
+    const filter = { createdAt: { $gte: from, $lte: to } };
+    if (req.query.status) filter.status = req.query.status;
+    if (req.query.source) filter.source = req.query.source;
+
+    const orders = await Order.find(filter)
+      .populate('customerId', 'name email phone customerId')
+      .populate('assignedVendorId', 'name')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const headers = [
+      'Order ID', 'Date', 'Source', 'Customer ID', 'Customer Name',
+      'Customer Email', 'Customer Phone', 'Status', 'Payment Status',
+      'Paid Amount', 'Subtotal', 'Discount', 'Shipping Charge',
+      'Tax Amount', 'Total Amount', 'Production Cost', 'Profit',
+      'Assigned Vendor', 'Shipping City', 'Shipping State', 'Shipping Pincode',
+      'Admin Notes',
+    ];
+
+    const rows = orders.map((o) => [
+      o.orderId,
+      new Date(o.createdAt).toISOString().slice(0, 10),
+      o.source,
+      o.customerId?.customerId || '',
+      o.customerName || o.customerId?.name || '',
+      o.customerEmail || o.customerId?.email || '',
+      o.customerPhone || o.customerId?.phone || '',
+      o.status,
+      o.paymentStatus,
+      o.paidAmount || 0,
+      o.subtotal || 0,
+      o.discount || 0,
+      o.shippingCharge || 0,
+      o.taxAmount || 0,
+      o.totalAmount || 0,
+      o.totalProductionCost || 0,
+      (o.totalAmount || 0) - (o.totalProductionCost || 0),
+      o.assignedVendorId?.name || '',
+      o.shippingAddress?.city || '',
+      o.shippingAddress?.state || '',
+      o.shippingAddress?.pincode || '',
+      o.adminNotes || '',
+    ]);
+
+    const dateStr = new Date().toISOString().slice(0, 10);
+    sendCsv(res, `orders-export-${dateStr}`, headers, rows);
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// ─────────────────────────────────────────────
+// GET /api/admin/reports/export/gst
+// Streams a CSV of all invoices in the period — for GST filing
+// ─────────────────────────────────────────────
+exports.exportGst = async (req, res) => {
+  try {
+    const { from, to } = getDateRange(req.query);
+    const invoices = await Invoice.find({ invoiceDate: { $gte: from, $lte: to } })
+      .populate('orderId', 'orderId')
+      .sort({ invoiceDate: 1 })
+      .lean();
+
+    const headers = [
+      'Invoice No', 'Invoice Date', 'Order ID', 'Customer Name', 'Customer GST',
+      'Shipping State', 'Inter-State', 'Taxable Amount',
+      'CGST Rate', 'CGST Amount', 'SGST Rate', 'SGST Amount',
+      'IGST Rate', 'IGST Amount', 'Total Tax', 'Grand Total',
+    ];
+
+    const rows = invoices.map((inv) => [
+      inv.invoiceNumber,
+      new Date(inv.invoiceDate).toISOString().slice(0, 10),
+      inv.orderId?.orderId || '',
+      inv.customerName || '',
+      inv.customerGst || '',
+      inv.shippingAddress?.state || '',
+      inv.isInterState ? 'Yes' : 'No',
+      inv.subtotal || 0,
+      inv.isInterState ? 0 : 9,
+      inv.totalCgst || 0,
+      inv.isInterState ? 0 : 9,
+      inv.totalSgst || 0,
+      inv.isInterState ? 18 : 0,
+      inv.totalIgst || 0,
+      (inv.totalCgst || 0) + (inv.totalSgst || 0) + (inv.totalIgst || 0),
+      inv.grandTotal || 0,
+    ]);
+
+    const dateStr = new Date().toISOString().slice(0, 10);
+    sendCsv(res, `gst-export-${dateStr}`, headers, rows);
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

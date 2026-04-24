@@ -9,4 +9,8 @@ router.get('/orders', reportController.orders);
 router.get('/gst', reportController.gst);
 router.get('/vendor-performance', reportController.vendorPerformance);
 
+// CSV downloads
+router.get('/export/orders', reportController.exportOrders);
+router.get('/export/gst', reportController.exportGst);
+
 module.exports = router;

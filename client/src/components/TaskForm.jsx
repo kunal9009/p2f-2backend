@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../api';
 import { useToast } from '../contexts/ToastContext';
 
@@ -16,7 +16,7 @@ export default function TaskForm({ taskId, defaultStatus, defaultDueDate, onClos
   const [form, setForm] = useState({
     title: '', description: '', status: defaultStatus || 'todo',
     priority: 'medium', project: '', dueDate: defaultDueDate || '', reminderDate: '',
-    tags: '', assignedTo: [], estimatedHours: '', actualHours: '',
+    tags: '', assignedTo: [], developers: [], estimatedHours: '', actualHours: '',
     emailNotificationsEnabled: true,
   });
 
@@ -43,6 +43,7 @@ export default function TaskForm({ taskId, defaultStatus, defaultDueDate, onClos
           reminderDate: t.reminderDate ? t.reminderDate.slice(0,10) : '',
           tags:           (t.tags || []).join(', '),
           assignedTo:     (t.assignedTo || []).map(a => a.userId),
+          developers:     (t.developers || []).map(a => a.userId),
           estimatedHours: t.estimatedHours || '',
           actualHours:    t.actualHours    || '',
           emailNotificationsEnabled: t.emailNotificationsEnabled !== false,
@@ -64,16 +65,27 @@ export default function TaskForm({ taskId, defaultStatus, defaultDueDate, onClos
     }));
   }
 
+  function toggleDeveloper(uid) {
+    setForm(f => ({
+      ...f,
+      developers: f.developers.includes(uid)
+        ? f.developers.filter(id => id !== uid)
+        : [...f.developers, uid],
+    }));
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     if (!form.title.trim()) { setError('Title is required'); return; }
     setSaving(true); setError('');
 
     const selected = users.filter(u => form.assignedTo.includes(u._id || u.id));
+    const selectedDevs = users.filter(u => form.developers.includes(u._id || u.id));
     const payload  = {
       ...form,
       tags:         form.tags.split(',').map(t => t.trim()).filter(Boolean),
       assignedTo:   selected.map(u => ({ userId: u._id||u.id, name: u.name, email: u.email })),
+      developers:   selectedDevs.map(u => ({ userId: u._id||u.id, name: u.name, email: u.email })),
       dueDate:        form.dueDate        || undefined,
       reminderDate:   form.reminderDate   || undefined,
       estimatedHours: form.estimatedHours ? Number(form.estimatedHours) : undefined,
@@ -93,7 +105,7 @@ export default function TaskForm({ taskId, defaultStatus, defaultDueDate, onClos
   if (loading) return <div style={{ padding: 32, textAlign: 'center', color: 'var(--muted)' }}>Loading…</div>;
 
   return (
-    <form className="task-form" onSubmit={handleSubmit} style={{ padding: 0 }}>
+    <form className="task-form" onSubmit={handleSubmit}>
       {error && <div className="alert alert-error" style={{ marginBottom: 12 }}>{error}</div>}
 
       <div className="form-group">
@@ -181,6 +193,18 @@ export default function TaskForm({ taskId, defaultStatus, defaultDueDate, onClos
       </div>
 
       <div className="form-group">
+        <label>Developers</label>
+        <MultiSelectDropdown
+          users={users}
+          selectedIds={form.developers}
+          onToggle={toggleDeveloper}
+          onClear={() => set('developers', [])}
+          placeholder="Select developers…"
+          emptyText="No developers selected"
+        />
+      </div>
+
+      <div className="form-group">
         <label>Assign To</label>
         <div className="assignee-grid">
           {users.map(u => {
@@ -221,5 +245,95 @@ export default function TaskForm({ taskId, defaultStatus, defaultDueDate, onClos
         </button>
       </div>
     </form>
+  );
+}
+
+function MultiSelectDropdown({ users, selectedIds, onToggle, onClear, placeholder, emptyText }) {
+  const [open, setOpen] = useState(false);
+  const [q, setQ]       = useState('');
+  const ref = useRef(null);
+
+  useEffect(() => {
+    function onDocClick(e) {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    }
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, []);
+
+  const selected = users.filter(u => selectedIds.includes(u._id || u.id));
+  const filtered = users.filter(u =>
+    (u.name || '').toLowerCase().includes(q.toLowerCase()) ||
+    (u.email || '').toLowerCase().includes(q.toLowerCase())
+  );
+
+  return (
+    <div className="multi-select" ref={ref}>
+      <button
+        type="button"
+        className="multi-select-toggle"
+        onClick={() => setOpen(o => !o)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+      >
+        {selected.length === 0 ? (
+          <span className="multi-select-placeholder">{placeholder}</span>
+        ) : (
+          <span className="multi-select-chips">
+            {selected.map(u => (
+              <span key={u._id || u.id} className="ms-chip">
+                {u.name}
+                <span
+                  className="ms-chip-x"
+                  onClick={e => { e.stopPropagation(); onToggle(u._id || u.id); }}
+                  title="Remove"
+                >✕</span>
+              </span>
+            ))}
+          </span>
+        )}
+        <span className="multi-select-caret">▾</span>
+      </button>
+
+      {open && (
+        <div className="multi-select-panel" role="listbox">
+          <input
+            className="multi-select-search"
+            placeholder="Search…"
+            value={q}
+            onChange={e => setQ(e.target.value)}
+            autoFocus
+          />
+          <div className="multi-select-options">
+            {filtered.length === 0 ? (
+              <div className="multi-select-empty">No users match</div>
+            ) : filtered.map(u => {
+              const uid = u._id || u.id;
+              const checked = selectedIds.includes(uid);
+              return (
+                <label key={uid} className={`ms-option${checked ? ' checked' : ''}`}>
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => onToggle(uid)}
+                  />
+                  <span className="ms-option-avatar">{(u.name || 'U').slice(0, 1).toUpperCase()}</span>
+                  <span className="ms-option-info">
+                    <span className="ms-option-name">{u.name}</span>
+                    <span className="ms-option-role">{u.role}</span>
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+          {selected.length > 0 && (
+            <div className="multi-select-footer">
+              <span>{selected.length} selected</span>
+              <button type="button" className="btn-link" onClick={onClear}>Clear all</button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 }

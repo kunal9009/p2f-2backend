@@ -64,6 +64,13 @@ const taskSchema = new mongoose.Schema({
     email: { type: String },
   }],
 
+  // Developers (people actually doing the work)
+  developers: [{
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    name: { type: String },
+    email: { type: String },
+  }],
+
   assignedById: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   assignedByName: { type: String },
 

@@ -68,9 +68,21 @@ app.get('/tasks-ui', (req, res) => res.redirect('/tasks-ui/index.html'));
 
 // React UI
 const reactDist = path.join(__dirname, 'client-dist');
-app.use('/app', express.static(reactDist));
+// Hashed assets (index-*.js/css) are fingerprinted so they can cache forever;
+// index.html must never be cached or the browser pins to stale asset hashes
+// across deploys.
+app.use('/app', express.static(reactDist, {
+  setHeaders(res, filePath) {
+    if (filePath.endsWith('index.html')) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    } else {
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    }
+  },
+}));
 app.get('/app/*', (req, res) => {
   const indexPath = path.join(reactDist, 'index.html');
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.sendFile(indexPath, err => {
     if (err) res.status(404).json({
       success: false,

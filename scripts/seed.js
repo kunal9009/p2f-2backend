@@ -30,6 +30,22 @@ const VIKAS_USER = {
   role: 'vendor',
 };
 
+// Developer/team users (selectable in the Tasks "Developers" multi-select).
+const TEAM_USERS = [
+  {
+    name: 'Abhishek',
+    email: (process.env.ABHISHEK_EMAIL || 'abhishek@mahattaart.com').toLowerCase(),
+    password: process.env.ABHISHEK_PASS || 'Abhishek@1234',
+    role: 'warehouse',
+  },
+  {
+    name: 'Faiz',
+    email: (process.env.FAIZ_EMAIL || 'faiz@mahattaart.com').toLowerCase(),
+    password: process.env.FAIZ_PASS || 'Faiz@1234',
+    role: 'warehouse',
+  },
+];
+
 async function seed() {
   await mongoose.connect(process.env.MONGODB_URI);
   console.log('Connected to MongoDB');
@@ -60,6 +76,17 @@ async function seed() {
     vikasVendor.userId = vikasUser._id;
     await vikasVendor.save();
     console.log(`Vikas user created: ${VIKAS_USER.email} / ${VIKAS_USER.password}`);
+  }
+
+  // ── Team / developer users ──
+  for (const u of TEAM_USERS) {
+    const existing = await User.findOne({ email: u.email });
+    if (existing) {
+      console.log(`${u.name} user already exists: ${u.email}`);
+    } else {
+      await User.create(u);
+      console.log(`${u.name} user created: ${u.email} / ${u.password}`);
+    }
   }
 
   await mongoose.disconnect();

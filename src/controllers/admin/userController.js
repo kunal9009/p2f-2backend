@@ -1,6 +1,49 @@
 const User = require('../../models/User');
 const Vendor = require('../../models/Vendor');
 
+// POST /api/admin/users
+exports.create = async (req, res) => {
+  try {
+    const { name, email, password, role, phone, vendorId, isActive } = req.body;
+
+    if (!name || !email || !password) {
+      return res.status(400).json({ success: false, message: 'name, email, and password are required' });
+    }
+    if (password.length < 6) {
+      return res.status(400).json({ success: false, message: 'Password must be at least 6 characters' });
+    }
+
+    const normalizedEmail = String(email).toLowerCase().trim();
+    const existing = await User.findOne({ email: normalizedEmail });
+    if (existing) {
+      return res.status(409).json({ success: false, message: 'A user with that email already exists' });
+    }
+
+    const user = await User.create({
+      name: String(name).trim(),
+      email: normalizedEmail,
+      password,
+      role,
+      phone,
+      vendorId: vendorId || undefined,
+      isActive: isActive !== undefined ? isActive : true,
+    });
+
+    if (role === 'vendor' && vendorId) {
+      await Vendor.findByIdAndUpdate(vendorId, { userId: user._id });
+    }
+
+    const safe = user.toObject();
+    delete safe.password;
+    res.status(201).json({ success: true, data: safe });
+  } catch (err) {
+    if (err.code === 11000) {
+      return res.status(409).json({ success: false, message: 'A user with that email already exists' });
+    }
+    res.status(400).json({ success: false, message: err.message });
+  }
+};
+
 // GET /api/admin/users
 exports.list = async (req, res) => {
   try {

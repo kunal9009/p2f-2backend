@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard — MahattaART Tasks</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <div id="sidebar"></div>
+
+  <main class="main-content">
+    <div class="page-header">
+      <div>
+        <h2>Dashboard</h2>
+        <p class="text-muted" id="greetingLine">Overview of all tasks across the team</p>
+      </div>
+      <button class="btn btn-primary" onclick="window.location.href='tasks.html?new=1'">+ New Task</button>
+    </div>
+
+    <!-- OVERDUE ALERT BANNER -->
+    <div id="overdueBanner" style="display:none" class="alert-banner alert-banner-danger">
+      <span id="overdueBannerText"></span>
+      <a href="tasks.html?overdue=true" class="alert-banner-link">View overdue tasks →</a>
+    </div>
+
+    <!-- DUE TODAY BANNER -->
+    <div id="dueTodayBanner" style="display:none" class="alert-banner alert-banner-warn">
+      <span id="dueTodayBannerText"></span>
+      <a href="tasks.html?dueToday=true" class="alert-banner-link">View today's tasks →</a>
+    </div>
+
+
+    <!-- SUMMARY CARDS -->
+    <div class="stats-grid" id="summaryCards">
+      <div class="stat-card skeleton"></div>
+      <div class="stat-card skeleton"></div>
+      <div class="stat-card skeleton"></div>
+      <div class="stat-card skeleton"></div>
+      <div class="stat-card skeleton"></div>
+    </div>
+
+    <!-- CHARTS ROW 1 -->
+    <div class="charts-row">
+      <div class="card chart-card">
+        <h3 class="card-title">Tasks by Status</h3>
+        <div class="chart-wrap"><canvas id="statusChart"></canvas></div>
+      </div>
+      <div class="card chart-card">
+        <h3 class="card-title">Tasks by Priority</h3>
+        <div class="chart-wrap"><canvas id="priorityChart"></canvas></div>
+      </div>
+      <div class="card chart-card">
+        <h3 class="card-title">Team Workload</h3>
+        <div class="chart-wrap"><canvas id="assigneeChart"></canvas></div>
+      </div>
+    </div>
+
+    <!-- CHARTS ROW 2 -->
+    <div class="charts-row">
+      <div class="card chart-card chart-wide">
+        <h3 class="card-title">Weekly Activity (Created vs Completed)</h3>
+        <div class="chart-wrap"><canvas id="weeklyChart"></canvas></div>
+      </div>
+      <div class="card chart-card">
+        <h3 class="card-title">Tasks by Project</h3>
+        <div class="chart-wrap"><canvas id="projectChart"></canvas></div>
+      </div>
+    </div>
+
+    <!-- BOTTOM ROW: recently completed + activity feed -->
+    <div class="two-col-row" style="margin-top:24px">
+      <div class="card">
+        <h3 class="card-title">Recently Completed (Last 7 Days)</h3>
+        <div id="recentList" class="task-mini-list"></div>
+      </div>
+
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <h3 class="card-title" style="margin:0">Team Activity Feed</h3>
+          <span class="text-muted" style="font-size:12px">Last 7 days</span>
+        </div>
+        <div id="activityFeed" class="activity-feed"></div>
+      </div>
+    </div>
+  </main>
+
+  <script src="app.js"></script>
+  <script>
+    requireAuth();
+    renderSidebar('dashboard');
+
+    const STATUS_COLORS = {
+      todo: '#94a3b8', in_progress: '#3b82f6', testing: '#f59e0b',
+      completed: '#22c55e', on_hold: '#a855f7', cancelled: '#ef4444',
+    };
+    const PRIORITY_COLORS = { critical:'#ef4444', high:'#f97316', medium:'#f59e0b', low:'#22c55e' };
+
+    // Greeting based on time of day
+    const hour = new Date().getHours();
+    const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+    const user = JSON.parse(localStorage.getItem('tm_user') || '{}');
+    document.getElementById('greetingLine').textContent =
+      `${greeting}, ${(user.name || 'there').split(' ')[0]}! Here's your team overview.`;
+
+    let statusChart, priorityChart, assigneeChart, weeklyChart, projectChart;
+
+    async function load() {
+      const [dashRes, actRes] = await Promise.all([
+        api('/api/admin/tasks/dashboard'),
+        api('/api/admin/tasks/activity?limit=25'),
+      ]);
+
+      if (!dashRes.success) return;
+      const d = dashRes.data;
+
+      // ── Alert Banners ──
+      if (d.summary.overdue > 0) {
+        document.getElementById('overdueBanner').style.display = 'flex';
+        document.getElementById('overdueBannerText').textContent =
+          `⚠️  ${d.summary.overdue} task${d.summary.overdue > 1 ? 's are' : ' is'} overdue and need${d.summary.overdue > 1 ? '' : 's'} attention.`;
+      }
+      if (d.summary.dueToday > 0) {
+        document.getElementById('dueTodayBanner').style.display = 'flex';
+        document.getElementById('dueTodayBannerText').textContent =
+          `⏰  ${d.summary.dueToday} task${d.summary.dueToday > 1 ? 's are' : ' is'} due today.`;
+      }
+
+      // ── Summary Cards ──
+      const cards = [
+        { label: 'Total Tasks',     value: d.summary.total,               icon: '📋', color: '#3b82f6', href: 'tasks.html' },
+        { label: 'Completed',       value: d.summary.completed,            icon: '✅', color: '#22c55e', href: 'tasks.html?status=completed' },
+        { label: 'Overdue',         value: d.summary.overdue,              icon: '🚨', color: '#ef4444', href: 'tasks.html?overdue=true' },
+        { label: 'Due Today',       value: d.summary.dueToday,             icon: '⏰', color: '#f59e0b', href: 'tasks.html?dueToday=true' },
+        { label: 'Completion Rate', value: d.summary.completionRate + '%', icon: '📈', color: '#a855f7', href: null },
+      ];
+      document.getElementById('summaryCards').innerHTML = cards.map(c => `
+        <div class="stat-card ${c.href ? 'stat-card-link' : ''}"
+             style="border-top:4px solid ${c.color}"
+             ${c.href ? `onclick="window.location.href='${c.href}'"` : ''}>
+          <div class="stat-icon">${c.icon}</div>
+          <div class="stat-value">${c.value}</div>
+          <div class="stat-label">${c.label}</div>
+        </div>`).join('');
+
+      // ── Status Doughnut ──
+      if (statusChart) statusChart.destroy();
+      statusChart = new Chart(document.getElementById('statusChart'), {
+        type: 'doughnut',
+        data: {
+          labels: d.statusBreakdown.map(s => s.label),
+          datasets: [{ data: d.statusBreakdown.map(s => s.count),
+                       backgroundColor: d.statusBreakdown.map(s => STATUS_COLORS[s.status] || '#999'),
+                       borderWidth: 2 }],
+        },
+        options: {
+          plugins: { legend: { position: 'bottom' } },
+          cutout: '60%',
+          onClick(_, els) {
+            if (els.length) {
+              const s = d.statusBreakdown[els[0].index].status;
+              window.location.href = `tasks.html?status=${s}`;
+            }
+          },
+        },
+      });
+
+      // ── Priority Bar ──
+      if (priorityChart) priorityChart.destroy();
+      priorityChart = new Chart(document.getElementById('priorityChart'), {
+        type: 'bar',
+        data: {
+          labels: d.priorityBreakdown.map(p => p.priority.charAt(0).toUpperCase() + p.priority.slice(1)),
+          datasets: [{ label: 'Tasks', data: d.priorityBreakdown.map(p => p.count),
+                       backgroundColor: d.priorityBreakdown.map(p => PRIORITY_COLORS[p.priority] || '#999'),
+                       borderRadius: 6 }],
+        },
+        options: {
+          plugins: { legend: { display: false } },
+          scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } },
+          onClick(_, els) {
+            if (els.length) {
+              const p = d.priorityBreakdown[els[0].index].priority;
+              window.location.href = `tasks.html?priority=${p}`;
+            }
+          },
+        },
+      });
+
+      // ── Assignee Horizontal Bar ──
+      if (assigneeChart) assigneeChart.destroy();
+      assigneeChart = new Chart(document.getElementById('assigneeChart'), {
+        type: 'bar',
+        data: {
+          labels: d.assigneeBreakdown.map(a => a.name || 'Unknown'),
+          datasets: [
+            { label: 'Total',     data: d.assigneeBreakdown.map(a => a.total),     backgroundColor: '#3b82f6', borderRadius: 4 },
+            { label: 'Completed', data: d.assigneeBreakdown.map(a => a.completed), backgroundColor: '#22c55e', borderRadius: 4 },
+            { label: 'Overdue',   data: d.assigneeBreakdown.map(a => a.overdue),   backgroundColor: '#ef4444', borderRadius: 4 },
+          ],
+        },
+        options: { indexAxis: 'y', plugins: { legend: { position: 'bottom' } }, scales: { x: { beginAtZero: true } } },
+      });
+
+      // ── Weekly Activity Line ──
+      if (weeklyChart) weeklyChart.destroy();
+      weeklyChart = new Chart(document.getElementById('weeklyChart'), {
+        type: 'line',
+        data: {
+          labels: d.weeklyActivity.map(w => `Week ${w._id.week}`),
+          datasets: [
+            { label: 'Created',   data: d.weeklyActivity.map(w => w.created),   borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.1)', tension: 0.4, fill: true },
+            { label: 'Completed', data: d.weeklyActivity.map(w => w.completed), borderColor: '#22c55e', backgroundColor: 'rgba(34,197,94,0.1)',  tension: 0.4, fill: true },
+          ],
+        },
+        options: { plugins: { legend: { position: 'bottom' } }, scales: { y: { beginAtZero: true } } },
+      });
+
+      // ── Project Pie ──
+      const projColors = ['#3b82f6','#22c55e','#f59e0b','#a855f7','#ef4444','#06b6d4','#f97316'];
+      if (projectChart) projectChart.destroy();
+      projectChart = new Chart(document.getElementById('projectChart'), {
+        type: 'pie',
+        data: {
+          labels: d.projectBreakdown.map(p => p.project),
+          datasets: [{ data: d.projectBreakdown.map(p => p.count),
+                       backgroundColor: projColors.slice(0, d.projectBreakdown.length) }],
+        },
+        options: { plugins: { legend: { position: 'bottom' } } },
+      });
+
+      // ── Recently Completed ──
+      document.getElementById('recentList').innerHTML = d.recentlyCompleted.length
+        ? d.recentlyCompleted.map(t => `
+            <div class="task-mini-item" onclick="window.location.href='tasks.html?id=${t._id}'">
+              <span class="badge badge-completed">completed</span>
+              <span class="task-mini-title">${t.taskId} — ${t.title}</span>
+              <span class="task-mini-meta">${t.project} · ${fmtDate(t.completedAt)}</span>
+            </div>`).join('')
+        : '<p class="text-muted" style="padding:16px">No tasks completed in the last 7 days.</p>';
+
+      // ── Activity Feed ──
+      if (actRes.success) renderActivityFeed(actRes.data);
+    }
+
+    function renderActivityFeed(events) {
+      const el = document.getElementById('activityFeed');
+      if (!events.length) {
+        el.innerHTML = '<p class="text-muted" style="padding:8px">No activity in the last 7 days.</p>';
+        return;
+      }
+      el.innerHTML = events.map(ev => {
+        const time = timeAgo(ev.timestamp);
+        if (ev.type === 'status_change') {
+          return `
+            <div class="activity-item" onclick="window.location.href='tasks.html?id=${ev.taskDbId}'">
+              <div class="activity-icon activity-status">⟳</div>
+              <div class="activity-body">
+                <span class="activity-actor">${ev.actor}</span>
+                moved <span class="activity-task">${ev.taskId}</span>
+                ${ev.fromStatus ? `from <span class="badge badge-${ev.fromStatus}">${ev.fromStatus.replace('_',' ')}</span>` : ''}
+                → <span class="badge badge-${ev.toStatus}">${ev.toStatus.replace('_',' ')}</span>
+                ${ev.remark ? `<span class="activity-remark">"${ev.remark}"</span>` : ''}
+                <div class="activity-task-title">${ev.title}</div>
+              </div>
+              <span class="activity-time">${time}</span>
+            </div>`;
+        }
+        return `
+          <div class="activity-item" onclick="window.location.href='tasks.html?id=${ev.taskDbId}'">
+            <div class="activity-icon activity-comment">💬</div>
+            <div class="activity-body">
+              <span class="activity-actor">${ev.actor}</span>
+              commented on <span class="activity-task">${ev.taskId}</span>
+              <div class="activity-comment-text">"${ev.text.length > 80 ? ev.text.slice(0,80)+'…' : ev.text}"</div>
+              <div class="activity-task-title">${ev.title}</div>
+            </div>
+            <span class="activity-time">${time}</span>
+          </div>`;
+      }).join('');
+    }
+
+    function timeAgo(ts) {
+      const diff = Date.now() - new Date(ts).getTime();
+      const m = Math.floor(diff / 60000);
+      if (m < 1)  return 'just now';
+      if (m < 60) return `${m}m ago`;
+      const h = Math.floor(m / 60);
+      if (h < 24) return `${h}h ago`;
+      return `${Math.floor(h / 24)}d ago`;
+    }
+
+    function fmtDate(d) {
+      return d ? new Date(d).toLocaleDateString('en-IN', { day:'numeric', month:'short' }) : '';
+    }
+
+    load();
+  </script>
+</body>
+</html>

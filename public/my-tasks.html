@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>My Tasks — MahattaART</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="sidebar"></div>
+
+  <main class="main-content">
+    <div class="page-header">
+      <div>
+        <h2>My Tasks</h2>
+        <p class="text-muted" id="myTaskCount">Loading…</p>
+      </div>
+      <select id="statusFilter" class="input-sm">
+        <option value="">All Statuses</option>
+        <option value="todo">To Do</option>
+        <option value="in_progress">In Progress</option>
+        <option value="testing">Testing</option>
+        <option value="completed">Completed</option>
+        <option value="on_hold">On Hold</option>
+      </select>
+    </div>
+
+    <div id="myTasksContainer" class="my-tasks-grid"></div>
+  </main>
+
+  <!-- DETAIL DRAWER -->
+  <div id="drawerOverlay" class="drawer-overlay" onclick="closeDrawer()"></div>
+  <div id="taskDrawer" class="task-drawer">
+    <div class="drawer-header">
+      <span id="drawerTaskId" class="badge-taskid"></span>
+      <button class="btn-icon" onclick="closeDrawer()">✕</button>
+    </div>
+    <div id="drawerBody" class="drawer-body"></div>
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    requireAuth();
+    renderSidebar('my');
+
+    const PRIO_BADGE = { critical:'badge-critical', high:'badge-high', medium:'badge-medium', low:'badge-low' };
+
+    async function loadMyTasks() {
+      const status = document.getElementById('statusFilter').value;
+      const qs = status ? `?status=${status}` : '';
+      const data = await api('/api/admin/tasks/my' + qs);
+      if (!data.success) return;
+
+      document.getElementById('myTaskCount').textContent =
+        `${data.total} task${data.total !== 1 ? 's' : ''} assigned to you`;
+
+      const container = document.getElementById('myTasksContainer');
+      if (!data.data.length) {
+        container.innerHTML = `<div class="empty-state"><div class="empty-icon">🎉</div><h3>All clear!</h3><p>No tasks assigned to you right now.</p></div>`;
+        return;
+      }
+
+      // Group by status
+      const groups = {};
+      data.data.forEach(t => {
+        if (!groups[t.status]) groups[t.status] = [];
+        groups[t.status].push(t);
+      });
+
+      const statusOrder = ['in_progress','testing','todo','on_hold','completed','cancelled'];
+      const statusLabels = { todo:'To Do', in_progress:'In Progress', testing:'Testing', completed:'Completed', on_hold:'On Hold', cancelled:'Cancelled' };
+      const statusColors = { todo:'#94a3b8', in_progress:'#3b82f6', testing:'#f59e0b', completed:'#22c55e', on_hold:'#a855f7', cancelled:'#ef4444' };
+
+      container.innerHTML = statusOrder
+        .filter(s => groups[s])
+        .map(s => `
+          <div class="my-tasks-group">
+            <div class="group-header" style="border-left:4px solid ${statusColors[s]}">
+              <span>${statusLabels[s]}</span>
+              <span class="col-count">${groups[s].length}</span>
+            </div>
+            ${groups[s].map(t => myTaskCard(t)).join('')}
+          </div>`).join('');
+    }
+
+    function myTaskCard(t) {
+      const due = t.dueDate ? new Date(t.dueDate) : null;
+      const overdue = due && due < new Date() && !['completed','cancelled'].includes(t.status);
+      const dueFmt  = due ? due.toLocaleDateString('en-IN',{day:'numeric',month:'short'}) : null;
+
+      return `
+        <div class="my-task-card" onclick="openDrawer('${t._id}')">
+          <div class="card-top">
+            <span class="badge-taskid">${t.taskId}</span>
+            <span class="badge ${PRIO_BADGE[t.priority]}">${t.priority}</span>
+          </div>
+          <div class="my-task-title">${t.title}</div>
+          <div class="card-footer">
+            <span class="task-project">${t.project}</span>
+            ${dueFmt ? `<span class="card-due ${overdue?'overdue':''}">📅 ${dueFmt}</span>` : ''}
+          </div>
+          ${t.comments && t.comments.length ? `<div class="card-meta">💬 ${t.comments.length}</div>` : ''}
+        </div>`;
+    }
+
+    async function openDrawer(id) {
+      const data = await api('/api/admin/tasks/' + id);
+      if (!data.success) return;
+      const t = data.data;
+
+      document.getElementById('drawerTaskId').textContent = t.taskId;
+      document.getElementById('drawerOverlay').classList.add('open');
+      document.getElementById('taskDrawer').classList.add('open');
+
+      const due = t.dueDate ? new Date(t.dueDate).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}) : '—';
+
+      document.getElementById('drawerBody').innerHTML = `
+        <h2 style="margin:0 0 12px">${t.title}</h2>
+        <div class="drawer-meta-grid">
+          <span class="dm-label">Status</span>  <span class="badge badge-${t.status}">${t.status.replace('_',' ')}</span>
+          <span class="dm-label">Priority</span><span class="badge ${PRIO_BADGE[t.priority]}">${t.priority}</span>
+          <span class="dm-label">Project</span> <span>${t.project}</span>
+          <span class="dm-label">Due</span>     <span>${due}</span>
+          ${t.estimatedHours ? `<span class="dm-label">Est.</span><span>${t.estimatedHours}h</span>` : ''}
+        </div>
+        ${t.description ? `<p style="margin-top:16px;color:#555">${t.description}</p>` : ''}
+
+        <div class="drawer-section">
+          <div class="drawer-section-title">Update Status</div>
+          <div class="status-btns">
+            ${['todo','in_progress','testing','completed','on_hold'].map(s =>
+              `<button class="btn-status ${t.status===s?'active':''}" onclick="changeStatus('${t._id}','${s}')">${s.replace('_',' ')}</button>`
+            ).join('')}
+          </div>
+        </div>
+
+        <div class="drawer-section">
+          <div class="drawer-section-title">Comments (${t.comments.length})</div>
+          <div id="commentList">
+            ${t.comments.map(c => `
+              <div class="comment">
+                <div class="avatar-sm" style="background:#3b82f6">${(c.authorName||'?').slice(0,2).toUpperCase()}</div>
+                <div class="comment-body">
+                  <span class="comment-author">${c.authorName}</span>
+                  <span class="comment-time">${new Date(c.createdAt).toLocaleDateString('en-IN',{day:'numeric',month:'short'})}</span>
+                  <p>${c.text}</p>
+                </div>
+              </div>`).join('') || '<p class="text-muted">No comments yet.</p>'}
+          </div>
+          <div class="comment-box">
+            <textarea id="newComment" placeholder="Add a comment…" rows="2"></textarea>
+            <button class="btn btn-primary btn-sm" onclick="postComment('${t._id}')">Post</button>
+          </div>
+        </div>`;
+    }
+
+    async function changeStatus(id, status) {
+      await api('/api/admin/tasks/' + id + '/status', 'PATCH', { status });
+      closeDrawer(); loadMyTasks();
+    }
+
+    async function postComment(id) {
+      const text = document.getElementById('newComment').value.trim();
+      if (!text) return;
+      await api('/api/admin/tasks/' + id + '/comments', 'POST', { text });
+      openDrawer(id);
+    }
+
+    function closeDrawer() {
+      document.getElementById('drawerOverlay').classList.remove('open');
+      document.getElementById('taskDrawer').classList.remove('open');
+    }
+
+    document.getElementById('statusFilter').addEventListener('change', loadMyTasks);
+    loadMyTasks();
+  </script>
+</body>
+</html>

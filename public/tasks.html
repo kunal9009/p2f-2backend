@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tasks — MahattaART</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="sidebar"></div>
+
+  <main class="main-content">
+    <div class="page-header">
+      <div>
+        <h2>All Tasks</h2>
+        <p class="text-muted" id="taskCount">Loading…</p>
+      </div>
+      <div class="header-actions">
+        <a class="btn btn-secondary" id="exportBtn">⬇ Export CSV</a>
+        <button class="btn btn-primary" onclick="openTaskModal()">+ New Task</button>
+      </div>
+    </div>
+
+    <!-- FILTERS -->
+    <div class="filters-bar card">
+      <input  type="text" id="searchQ"          class="input-sm" placeholder="Search title / ID…" />
+      <select id="filterStatus"                  class="input-sm">
+        <option value="">All Statuses</option>
+        <option value="todo">To Do</option>
+        <option value="in_progress">In Progress</option>
+        <option value="testing">Testing</option>
+        <option value="completed">Completed</option>
+        <option value="on_hold">On Hold</option>
+        <option value="cancelled">Cancelled</option>
+      </select>
+      <select id="filterPriority"                class="input-sm">
+        <option value="">All Priorities</option>
+        <option value="critical">Critical</option>
+        <option value="high">High</option>
+        <option value="medium">Medium</option>
+        <option value="low">Low</option>
+      </select>
+      <input  type="date" id="filterDueBefore"   class="input-sm" title="Due before date" />
+      <label  class="checkbox-label"><input type="checkbox" id="filterDueToday" /> Due today</label>
+      <label  class="checkbox-label"><input type="checkbox" id="filterOverdue"  /> Overdue only</label>
+      <button class="btn btn-secondary btn-sm" onclick="resetFilters()">Clear</button>
+    </div>
+
+    <!-- BULK ACTION BAR (hidden until rows selected) -->
+    <div id="bulkBar" class="bulk-bar" style="display:none">
+      <span id="bulkCount" class="bulk-count"></span>
+      <span class="bulk-label">selected</span>
+      <div class="bulk-actions">
+        <label class="bulk-action-label">Move to:</label>
+        <select id="bulkStatus" class="input-sm">
+          <option value="">— choose —</option>
+          <option value="todo">To Do</option>
+          <option value="in_progress">In Progress</option>
+          <option value="testing">Testing</option>
+          <option value="completed">Completed</option>
+          <option value="on_hold">On Hold</option>
+          <option value="cancelled">Cancelled</option>
+        </select>
+        <button class="btn btn-primary btn-sm"  onclick="bulkChangeStatus()">Apply Status</button>
+        <button class="btn btn-danger  btn-sm"  onclick="bulkDelete()">Delete Selected</button>
+        <button class="btn btn-secondary btn-sm" onclick="clearSelection()">✕ Clear</button>
+      </div>
+    </div>
+
+    <!-- TASK TABLE -->
+    <div class="card table-card">
+      <table class="data-table" id="taskTable">
+        <thead>
+          <tr>
+            <th style="width:36px">
+              <input type="checkbox" id="selectAll" title="Select all" onchange="toggleSelectAll(this)" />
+            </th>
+            <th>Task ID</th>
+            <th>Title</th>
+            <th>Project</th>
+            <th>Status</th>
+            <th>Priority</th>
+            <th>Assigned To</th>
+            <th>Due Date</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="taskTbody">
+          <tr><td colspan="9" style="text-align:center;padding:32px;color:#999">Loading…</td></tr>
+        </tbody>
+      </table>
+      <div class="pagination" id="pagination"></div>
+    </div>
+  </main>
+
+  <!-- TASK MODAL -->
+  <div id="modalOverlay" class="modal-overlay"></div>
+  <div id="taskModal" class="modal modal-lg">
+    <div class="modal-header">
+      <h3 id="modalTitle">New Task</h3>
+      <button class="btn-icon" onclick="closeTaskModal()">✕</button>
+    </div>
+    <div id="modalBody"></div>
+  </div>
+
+  <!-- DETAIL DRAWER -->
+  <div id="drawerOverlay" class="drawer-overlay" onclick="closeDrawer()"></div>
+  <div id="taskDrawer" class="task-drawer">
+    <div class="drawer-header">
+      <span id="drawerTaskId" class="badge-taskid"></span>
+      <button class="btn-icon" onclick="closeDrawer()">✕</button>
+    </div>
+    <div id="drawerBody" class="drawer-body"></div>
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    requireAuth();
+    renderSidebar('tasks');
+
+    const PRIO_BADGE = { critical:'badge-critical', high:'badge-high', medium:'badge-medium', low:'badge-low' };
+    let page = 1, totalPages = 1;
+    let debounceTimer;
+    let selectedIds = new Set();
+
+    document.getElementById('exportBtn').onclick = () => {
+      window.location.href = '/api/admin/tasks/export?' + buildQS({ limit: 5000 }) + '&token=' + localStorage.getItem('tm_token');
+    };
+
+    /* ── Filters ── */
+    function getFilters() {
+      return {
+        search:    document.getElementById('searchQ').value.trim(),
+        status:    document.getElementById('filterStatus').value,
+        priority:  document.getElementById('filterPriority').value,
+        dueBefore: document.getElementById('filterDueBefore').value,
+        dueToday:  document.getElementById('filterDueToday').checked  ? 'true' : '',
+        overdue:   document.getElementById('filterOverdue').checked   ? 'true' : '',
+      };
+    }
+
+    function buildQS(extra = {}) {
+      const f = { ...getFilters(), page, limit: 20, ...extra };
+      return Object.entries(f).filter(([, v]) => v).map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join('&');
+    }
+
+    async function loadTasks() {
+      document.getElementById('taskTbody').innerHTML =
+        `<tr><td colspan="9" style="text-align:center;padding:32px;color:#999">Loading…</td></tr>`;
+
+      const data = await api('/api/admin/tasks?' + buildQS());
+      if (!data.success) return;
+
+      totalPages = data.pagination.pages || 1;
+      document.getElementById('taskCount').textContent =
+        `${data.pagination.total} task${data.pagination.total !== 1 ? 's' : ''}`;
+
+      const tbody = document.getElementById('taskTbody');
+      if (!data.data.length) {
+        tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:32px;color:#999">No tasks found.</td></tr>`;
+        renderPagination();
+        return;
+      }
+
+      tbody.innerHTML = data.data.map(t => {
+        const due     = t.dueDate ? new Date(t.dueDate) : null;
+        const overdue = due && due < new Date() && !['completed','cancelled'].includes(t.status);
+        const dueFmt  = due ? due.toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' }) : '—';
+        const assignees = (t.assignedTo || []).map(a => a.name).join(', ') || '—';
+        const checked   = selectedIds.has(t._id) ? 'checked' : '';
+
+        const statusOptions = ['todo','in_progress','testing','completed','on_hold','cancelled']
+          .map(s => `<option value="${s}" ${t.status === s ? 'selected' : ''}>${s.replace('_', ' ')}</option>`)
+          .join('');
+
+        return `<tr id="row-${t._id}" class="${selectedIds.has(t._id) ? 'row-selected' : ''}">
+          <td>
+            <input type="checkbox" class="row-cb" data-id="${t._id}"
+                   ${checked} onchange="toggleRowSelect(this)" />
+          </td>
+          <td><span class="badge-taskid">${t.taskId}</span></td>
+          <td class="task-title-cell">
+            <span class="task-link" onclick="openDrawer('${t._id}')">${t.title}</span>
+            ${t.tags && t.tags.length
+              ? `<div class="card-tags">${t.tags.map(g => `<span class="tag">${g}</span>`).join('')}</div>`
+              : ''}
+          </td>
+          <td>${t.project || '—'}</td>
+          <td>
+            <select class="inline-status-select badge badge-${t.status}"
+                    onchange="inlineStatusChange('${t._id}', this)">
+              ${statusOptions}
+            </select>
+          </td>
+          <td><span class="badge ${PRIO_BADGE[t.priority] || ''}">${t.priority}</span></td>
+          <td>${assignees}</td>
+          <td class="${overdue ? 'text-danger' : ''}">${dueFmt}</td>
+          <td>
+            <div class="action-btns">
+              <button class="btn-icon-sm" title="Edit"   onclick="openTaskModal('${t._id}')">✏️</button>
+              <button class="btn-icon-sm" title="Delete" onclick="deleteTask('${t._id}','${t.taskId}')">🗑️</button>
+            </div>
+          </td>
+        </tr>`;
+      }).join('');
+
+      // Sync select-all checkbox state
+      const allCbs = document.querySelectorAll('.row-cb');
+      const allChecked = allCbs.length && [...allCbs].every(cb => cb.checked);
+      document.getElementById('selectAll').checked = allChecked;
+
+      renderPagination();
+    }
+
+    /* ── Pagination ── */
+    function renderPagination() {
+      const el = document.getElementById('pagination');
+      if (totalPages <= 1) { el.innerHTML = ''; return; }
+      el.innerHTML = `
+        <button class="btn btn-secondary btn-sm" ${page <= 1 ? 'disabled' : ''} onclick="goPage(${page - 1})">← Prev</button>
+        <span>Page ${page} of ${totalPages}</span>
+        <button class="btn btn-secondary btn-sm" ${page >= totalPages ? 'disabled' : ''} onclick="goPage(${page + 1})">Next →</button>`;
+    }
+
+    function goPage(p) { page = p; loadTasks(); }
+
+    function resetFilters() {
+      ['searchQ'].forEach(id => document.getElementById(id).value = '');
+      ['filterStatus','filterPriority','filterDueBefore'].forEach(id => document.getElementById(id).value = '');
+      ['filterDueToday','filterOverdue'].forEach(id => document.getElementById(id).checked = false);
+      page = 1; loadTasks();
+    }
+
+    document.getElementById('searchQ').addEventListener('input', () => {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => { page = 1; loadTasks(); }, 400);
+    });
+    ['filterStatus','filterPriority','filterDueBefore','filterDueToday','filterOverdue'].forEach(id => {
+      document.getElementById(id).addEventListener('change', () => { page = 1; loadTasks(); });
+    });
+
+    /* ── Inline status change ── */
+    async function inlineStatusChange(id, selectEl) {
+      const status = selectEl.value;
+      selectEl.className = `inline-status-select badge badge-${status}`;
+      const res = await api('/api/admin/tasks/' + id + '/status', 'PATCH', { status });
+      if (!res.success) { alert(res.message || 'Status update failed'); loadTasks(); }
+    }
+
+    /* ── Delete (single) ── */
+    async function deleteTask(id, taskId) {
+      if (!confirm(`Delete task ${taskId}? This cannot be undone.`)) return;
+      const res = await api('/api/admin/tasks/' + id, 'DELETE');
+      if (res.success) { selectedIds.delete(id); loadTasks(); updateBulkBar(); }
+      else alert(res.message || 'Delete failed');
+    }
+
+    /* ── Bulk selection ── */
+    function toggleRowSelect(cb) {
+      const id = cb.dataset.id;
+      cb.checked ? selectedIds.add(id) : selectedIds.delete(id);
+      const row = document.getElementById('row-' + id);
+      if (row) row.classList.toggle('row-selected', cb.checked);
+      updateBulkBar();
+    }
+
+    function toggleSelectAll(masterCb) {
+      document.querySelectorAll('.row-cb').forEach(cb => {
+        cb.checked = masterCb.checked;
+        const id = cb.dataset.id;
+        masterCb.checked ? selectedIds.add(id) : selectedIds.delete(id);
+        const row = document.getElementById('row-' + id);
+        if (row) row.classList.toggle('row-selected', masterCb.checked);
+      });
+      updateBulkBar();
+    }
+
+    function clearSelection() {
+      selectedIds.clear();
+      document.querySelectorAll('.row-cb').forEach(cb => { cb.checked = false; });
+      document.querySelectorAll('.row-selected').forEach(r => r.classList.remove('row-selected'));
+      document.getElementById('selectAll').checked = false;
+      updateBulkBar();
+    }
+
+    function updateBulkBar() {
+      const bar = document.getElementById('bulkBar');
+      const n   = selectedIds.size;
+      if (n === 0) { bar.style.display = 'none'; return; }
+      bar.style.display = 'flex';
+      document.getElementById('bulkCount').textContent = n;
+    }
+
+    async function bulkChangeStatus() {
+      const status = document.getElementById('bulkStatus').value;
+      if (!status) { alert('Please choose a status first.'); return; }
+      if (!confirm(`Move ${selectedIds.size} task(s) to "${status.replace('_', ' ')}"?`)) return;
+
+      const ids = [...selectedIds];
+      await Promise.all(ids.map(id => api('/api/admin/tasks/' + id + '/status', 'PATCH', { status })));
+      clearSelection();
+      loadTasks();
+    }
+
+    async function bulkDelete() {
+      const n = selectedIds.size;
+      if (!confirm(`Permanently delete ${n} task(s)? This cannot be undone.`)) return;
+      const ids = [...selectedIds];
+      await Promise.all(ids.map(id => api('/api/admin/tasks/' + id, 'DELETE')));
+      ids.forEach(id => selectedIds.delete(id));
+      updateBulkBar();
+      loadTasks();
+    }
+
+    /* ── Drawer ── */
+    async function openDrawer(id) {
+      const data = await api('/api/admin/tasks/' + id);
+      if (!data.success) return;
+      const t = data.data;
+
+      document.getElementById('drawerTaskId').textContent = t.taskId;
+      document.getElementById('drawerOverlay').classList.add('open');
+      document.getElementById('taskDrawer').classList.add('open');
+
+      const due = t.dueDate
+        ? new Date(t.dueDate).toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' })
+        : '—';
+      const assigneeNames = (t.assignedTo || []).map(a => a.name).join(', ') || '—';
+
+      document.getElementById('drawerBody').innerHTML = `
+        <h2 style="margin:0 0 12px">${t.title}</h2>
+        <div class="drawer-meta-grid">
+          <span class="dm-label">Status</span>  <span class="badge badge-${t.status}">${t.status.replace('_',' ')}</span>
+          <span class="dm-label">Priority</span><span class="badge ${PRIO_BADGE[t.priority]}">${t.priority}</span>
+          <span class="dm-label">Project</span> <span>${t.project}</span>
+          <span class="dm-label">Assigned</span><span>${assigneeNames}</span>
+          <span class="dm-label">Due</span>     <span>${due}</span>
+          ${t.estimatedHours ? `<span class="dm-label">Est.</span><span>${t.estimatedHours}h</span>` : ''}
+          ${t.actualHours    ? `<span class="dm-label">Actual</span><span>${t.actualHours}h</span>` : ''}
+        </div>
+        ${t.description ? `<p style="margin-top:16px;color:#555">${t.description}</p>` : ''}
+
+        <div class="drawer-section">
+          <div class="drawer-section-title">Change Status</div>
+          <div class="status-btns">
+            ${['todo','in_progress','testing','completed','on_hold','cancelled'].map(s =>
+              `<button class="btn-status ${t.status===s?'active':''}"
+                       onclick="changeStatus('${t._id}','${s}')">${s.replace('_',' ')}</button>`
+            ).join('')}
+          </div>
+        </div>
+
+        <div class="drawer-section">
+          <div class="drawer-section-title">Status History</div>
+          <div class="history-list">
+            ${(t.statusHistory || []).slice().reverse().map(h => `
+              <div class="history-item">
+                <span class="badge badge-${h.toStatus}">${h.toStatus.replace('_',' ')}</span>
+                <span class="history-by">${h.changedByName || ''}</span>
+                <span class="history-time">${new Date(h.changedAt).toLocaleDateString('en-IN',{day:'numeric',month:'short'})}</span>
+                ${h.remark ? `<span class="history-remark">${h.remark}</span>` : ''}
+              </div>`).join('') || '<p class="text-muted">No history.</p>'}
+          </div>
+        </div>
+
+        <div class="drawer-section">
+          <div class="drawer-section-title">Comments (${t.comments.length})</div>
+          <div id="commentList">
+            ${t.comments.map(c => `
+              <div class="comment">
+                <div class="avatar-sm" style="background:#3b82f6">${(c.authorName||'?').slice(0,2).toUpperCase()}</div>
+                <div class="comment-body">
+                  <span class="comment-author">${c.authorName}</span>
+                  <span class="comment-time">${new Date(c.createdAt).toLocaleDateString('en-IN',{day:'numeric',month:'short'})}</span>
+                  <p>${c.text}</p>
+                </div>
+              </div>`).join('') || '<p class="text-muted">No comments yet.</p>'}
+          </div>
+          <div class="comment-box">
+            <textarea id="newComment" placeholder="Add a comment…" rows="2"></textarea>
+            <button class="btn btn-primary btn-sm" onclick="postComment('${t._id}')">Post</button>
+          </div>
+        </div>
+
+        <div style="margin-top:16px;display:flex;gap:8px">
+          <button class="btn btn-secondary" onclick="closeDrawer();openTaskModal('${t._id}')">Edit Task</button>
+          <button class="btn btn-danger"    onclick="closeDrawer();deleteTask('${t._id}','${t.taskId}')">Delete</button>
+        </div>`;
+    }
+
+    async function changeStatus(id, status) {
+      await api('/api/admin/tasks/' + id + '/status', 'PATCH', { status });
+      closeDrawer(); loadTasks();
+    }
+
+    async function postComment(id) {
+      const text = document.getElementById('newComment').value.trim();
+      if (!text) return;
+      await api('/api/admin/tasks/' + id + '/comments', 'POST', { text });
+      openDrawer(id);
+    }
+
+    function closeDrawer() {
+      document.getElementById('drawerOverlay').classList.remove('open');
+      document.getElementById('taskDrawer').classList.remove('open');
+    }
+
+    /* ── Task Modal ── */
+    function openTaskModal(id) {
+      document.getElementById('modalOverlay').classList.add('open');
+      document.getElementById('taskModal').classList.add('open');
+      document.getElementById('modalOverlay').onclick = closeTaskModal;
+      renderTaskForm(id);
+    }
+    function closeTaskModal() {
+      document.getElementById('modalOverlay').classList.remove('open');
+      document.getElementById('taskModal').classList.remove('open');
+    }
+
+    /* ── Pre-apply URL params (from dashboard card links) ── */
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('status'))            document.getElementById('filterStatus').value  = params.get('status');
+    if (params.get('priority'))          document.getElementById('filterPriority').value = params.get('priority');
+    if (params.get('overdue') === 'true') document.getElementById('filterOverdue').checked  = true;
+    if (params.get('dueToday') === 'true') document.getElementById('filterDueToday').checked = true;
+    if (params.get('new'))               openTaskModal();
+    if (params.get('id'))                openDrawer(params.get('id'));
+
+    loadTasks();
+  </script>
+  <script src="taskform.js"></script>
+</body>
+</html>

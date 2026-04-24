@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Search — MahattaART Tasks</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="sidebar"></div>
+
+  <main class="main-content">
+    <div class="page-header">
+      <div>
+        <h2>Global Search</h2>
+        <p class="text-muted">Search across tasks, projects, tags, and comments</p>
+      </div>
+    </div>
+
+    <!-- Search bar -->
+    <div class="search-hero">
+      <div class="search-hero-inner">
+        <span class="search-hero-icon">🔍</span>
+        <input
+          id="searchInput"
+          type="text"
+          class="search-hero-input"
+          placeholder="Search tasks, IDs, projects, tags, comments…"
+          autocomplete="off"
+        />
+        <button class="btn btn-primary" onclick="doSearch()">Search</button>
+      </div>
+    </div>
+
+    <!-- Filters / sort bar (hidden until first search) -->
+    <div id="filterBar" class="search-filter-bar" style="display:none">
+      <div class="filter-chips" id="filterChips"></div>
+      <div class="search-meta" id="searchMeta"></div>
+    </div>
+
+    <!-- Results -->
+    <div id="resultsWrap">
+      <div class="search-empty-state" id="emptyState">
+        <div class="search-empty-icon">🔍</div>
+        <div class="search-empty-title">Search your tasks</div>
+        <div class="search-empty-sub">Type a keyword, task ID (e.g. TKT-0012), project name, or tag</div>
+      </div>
+    </div>
+
+  </main>
+
+  <script src="app.js"></script>
+  <script>
+    requireAuth();
+    renderSidebar('search');
+
+    /* ── State ── */
+    let _lastQuery   = '';
+    let _allResults  = [];
+    let _activeStatus = '';
+    let _activeMatch  = '';
+
+    /* ── Parse ?q= from URL on load ── */
+    window.addEventListener('DOMContentLoaded', () => {
+      const params = new URLSearchParams(location.search);
+      const q = params.get('q') || '';
+      if (q) {
+        document.getElementById('searchInput').value = q;
+        doSearch();
+      }
+    });
+
+    /* ── Keyboard: Enter to search ── */
+    document.getElementById('searchInput').addEventListener('keydown', e => {
+      if (e.key === 'Enter') doSearch();
+    });
+
+    /* ── Main search ── */
+    async function doSearch() {
+      const q = document.getElementById('searchInput').value.trim();
+      if (!q) return;
+      _lastQuery  = q;
+      _activeStatus = '';
+      _activeMatch  = '';
+
+      // Update URL without navigation
+      history.replaceState(null, '', '?q=' + encodeURIComponent(q));
+
+      showSkeleton();
+
+      const res = await api('/api/admin/tasks/search?q=' + encodeURIComponent(q) + '&limit=50');
+      if (!res.success) {
+        showError(res.message || 'Search failed');
+        return;
+      }
+
+      _allResults = res.data || [];
+      renderResults();
+    }
+
+    /* ── Render ── */
+    function renderResults() {
+      const filterBar = document.getElementById('filterBar');
+      const wrap      = document.getElementById('resultsWrap');
+
+      let results = _allResults;
+      if (_activeStatus) results = results.filter(t => t.status === _activeStatus);
+      if (_activeMatch)  results = results.filter(t => t.matchIn === _activeMatch);
+
+      // Build filter bar
+      filterBar.style.display = 'flex';
+      buildFilterChips();
+      document.getElementById('searchMeta').textContent =
+        results.length === 0 ? 'No results' :
+        results.length === 1 ? '1 result' :
+        `${results.length} results`;
+
+      if (results.length === 0) {
+        wrap.innerHTML = `
+          <div class="search-empty-state">
+            <div class="search-empty-icon">😶</div>
+            <div class="search-empty-title">No results for "${esc(_lastQuery)}"</div>
+            <div class="search-empty-sub">Try a different keyword, a task ID like TKT-0012, or a project name</div>
+          </div>`;
+        return;
+      }
+
+      wrap.innerHTML = `<div class="search-results-list">${results.map(resultCard).join('')}</div>`;
+    }
+
+    function resultCard(t) {
+      const due     = t.dueDate ? new Date(t.dueDate).toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' }) : '';
+      const assignees = (t.assignedTo || []).map(a => `<span class="result-assignee">${esc(a.name)}</span>`).join('');
+      const tags    = (t.tags || []).map(tag => `<span class="tag-chip">${esc(tag)}</span>`).join('');
+      const matchBadge = matchLabel(t.matchIn);
+      const snippet  = t.matchSnippet
+        ? `<div class="result-snippet">"…${esc(t.matchSnippet)}…"</div>`
+        : '';
+
+      return `
+        <div class="result-card" onclick="window.location.href='tasks.html?id=${t._id}'">
+          <div class="result-card-header">
+            <span class="result-task-id">${esc(t.taskId)}</span>
+            ${matchBadge}
+            <span class="priority-badge priority-${t.priority}">${t.priority}</span>
+            <span class="status-badge status-${t.status}">${t.status.replace('_',' ')}</span>
+            <span class="result-date">${due ? '📅 ' + due : ''}</span>
+          </div>
+          <div class="result-title">${esc(t.title)}</div>
+          ${t.project ? `<div class="result-project">📁 ${esc(t.project)}</div>` : ''}
+          ${snippet}
+          <div class="result-footer">
+            ${assignees}
+            ${tags}
+          </div>
+        </div>`;
+    }
+
+    function matchLabel(matchIn) {
+      const map = {
+        taskId:      { label: 'ID match',      cls: 'match-id'      },
+        title:       { label: 'Title',          cls: 'match-title'   },
+        project:     { label: 'Project',        cls: 'match-project' },
+        tag:         { label: 'Tag',            cls: 'match-tag'     },
+        description: { label: 'Description',   cls: 'match-desc'    },
+        comment:     { label: 'Comment',        cls: 'match-comment' },
+      };
+      const m = map[matchIn] || { label: matchIn, cls: 'match-title' };
+      return `<span class="match-badge ${m.cls}">${m.label}</span>`;
+    }
+
+    /* ── Filter chips ── */
+    function buildFilterChips() {
+      const chips = document.getElementById('filterChips');
+
+      // Collect unique statuses and match types from ALL results
+      const statuses = [...new Set(_allResults.map(t => t.status))].sort();
+      const matches  = [...new Set(_allResults.map(t => t.matchIn))].sort();
+
+      let html = '<span class="chip-label">Filter:</span>';
+
+      statuses.forEach(s => {
+        const active = _activeStatus === s ? 'chip-active' : '';
+        const count  = _allResults.filter(t => t.status === s).length;
+        html += `<button class="filter-chip ${active}" onclick="toggleStatusFilter('${s}')">${s.replace('_',' ')} <span class="chip-count">${count}</span></button>`;
+      });
+
+      if (statuses.length) html += '<span class="chip-sep">|</span>';
+
+      matches.forEach(m => {
+        const active = _activeMatch === m ? 'chip-active' : '';
+        const count  = _allResults.filter(t => t.matchIn === m).length;
+        html += `<button class="filter-chip ${active}" onclick="toggleMatchFilter('${m}')">${m} <span class="chip-count">${count}</span></button>`;
+      });
+
+      chips.innerHTML = html;
+    }
+
+    function toggleStatusFilter(s) {
+      _activeStatus = _activeStatus === s ? '' : s;
+      renderResults();
+    }
+
+    function toggleMatchFilter(m) {
+      _activeMatch = _activeMatch === m ? '' : m;
+      renderResults();
+    }
+
+    /* ── Helpers ── */
+    function showSkeleton() {
+      document.getElementById('filterBar').style.display = 'none';
+      document.getElementById('resultsWrap').innerHTML = `
+        <div class="search-results-list">
+          ${Array(5).fill(0).map(() => `
+            <div class="result-card skeleton-card">
+              <div class="skel skel-line" style="width:120px;height:14px"></div>
+              <div class="skel skel-line" style="width:80%;height:18px;margin-top:8px"></div>
+              <div class="skel skel-line" style="width:40%;height:12px;margin-top:6px"></div>
+            </div>`).join('')}
+        </div>`;
+    }
+
+    function showError(msg) {
+      document.getElementById('resultsWrap').innerHTML =
+        `<div class="alert alert-error" style="margin-top:16px">❌ ${esc(msg)}</div>`;
+    }
+
+    function esc(s) {
+      return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+  </script>
+</body>
+</html>

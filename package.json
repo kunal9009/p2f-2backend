@@ -11,7 +11,7 @@
     "client:install": "cd client && npm install",
     "client:dev": "cd client && npm run dev",
     "client:build": "cd client && npm run build",
-    "build": "cd client && npm install && npm run build",
+    "build": "cd client && npm install --include=dev && npm run build",
     "postinstall": "[ \"$SKIP_CLIENT_BUILD\" = \"1\" ] || npm run build"
   },
   "keywords": [

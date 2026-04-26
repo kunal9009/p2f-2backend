@@ -30,6 +30,24 @@ function AdminRoute({ children }) {
   return children;
 }
 
+// Section-level guard: admin sees everything; everyone else needs the
+// section in their permissions array (or permissions unset = legacy all).
+function SectionRoute({ section, children }) {
+  const { token, hasSection } = useAuth();
+  if (!token) return <Navigate to="/login" replace />;
+  if (!hasSection(section)) return <Navigate to="/no-access" replace />;
+  return children;
+}
+
+function NoAccess() {
+  return (
+    <div style={{ padding: 32, textAlign: 'center', color: 'var(--muted)' }}>
+      <h2 style={{ marginBottom: 8 }}>No access</h2>
+      <p>You don't have permission to view this section. Ask an admin to grant access.</p>
+    </div>
+  );
+}
+
 /* Ctrl+K → navigate to /search */
 function GlobalShortcuts() {
   const navigate = useNavigate();
@@ -58,17 +76,18 @@ export default function App() {
                 <Route path="/login" element={<Login />} />
                 <Route path="/" element={<Navigate to="/dashboard" replace />} />
                 <Route element={<Layout />}>
-                  <Route path="/dashboard" element={<ProtectedRoute><ErrorBoundary><Dashboard /></ErrorBoundary></ProtectedRoute>} />
-                  <Route path="/kanban"    element={<ProtectedRoute><ErrorBoundary><Kanban /></ErrorBoundary></ProtectedRoute>} />
-                  <Route path="/tasks"     element={<ProtectedRoute><ErrorBoundary><Tasks /></ErrorBoundary></ProtectedRoute>} />
-                  <Route path="/my-tasks"  element={<ProtectedRoute><ErrorBoundary><MyTasks /></ErrorBoundary></ProtectedRoute>} />
-                  <Route path="/search"    element={<ProtectedRoute><ErrorBoundary><Search /></ErrorBoundary></ProtectedRoute>} />
-                  <Route path="/team"      element={<ProtectedRoute><ErrorBoundary><Team /></ErrorBoundary></ProtectedRoute>} />
-                  <Route path="/reports"   element={<ProtectedRoute><ErrorBoundary><Reports /></ErrorBoundary></ProtectedRoute>} />
-                  <Route path="/calendar"  element={<ProtectedRoute><ErrorBoundary><Calendar /></ErrorBoundary></ProtectedRoute>} />
-                  <Route path="/ai-chat"   element={<ProtectedRoute><ErrorBoundary><AiChat /></ErrorBoundary></ProtectedRoute>} />
-                  <Route path="/settings"  element={<ProtectedRoute><ErrorBoundary><Settings /></ErrorBoundary></ProtectedRoute>} />
+                  <Route path="/dashboard" element={<SectionRoute section="dashboard"><ErrorBoundary><Dashboard /></ErrorBoundary></SectionRoute>} />
+                  <Route path="/kanban"    element={<SectionRoute section="kanban"><ErrorBoundary><Kanban /></ErrorBoundary></SectionRoute>} />
+                  <Route path="/tasks"     element={<SectionRoute section="tasks"><ErrorBoundary><Tasks /></ErrorBoundary></SectionRoute>} />
+                  <Route path="/my-tasks"  element={<SectionRoute section="my-tasks"><ErrorBoundary><MyTasks /></ErrorBoundary></SectionRoute>} />
+                  <Route path="/search"    element={<SectionRoute section="search"><ErrorBoundary><Search /></ErrorBoundary></SectionRoute>} />
+                  <Route path="/team"      element={<SectionRoute section="team"><ErrorBoundary><Team /></ErrorBoundary></SectionRoute>} />
+                  <Route path="/reports"   element={<SectionRoute section="reports"><ErrorBoundary><Reports /></ErrorBoundary></SectionRoute>} />
+                  <Route path="/calendar"  element={<SectionRoute section="calendar"><ErrorBoundary><Calendar /></ErrorBoundary></SectionRoute>} />
+                  <Route path="/ai-chat"   element={<SectionRoute section="ai-chat"><ErrorBoundary><AiChat /></ErrorBoundary></SectionRoute>} />
+                  <Route path="/settings"  element={<SectionRoute section="settings"><ErrorBoundary><Settings /></ErrorBoundary></SectionRoute>} />
                   <Route path="/users"     element={<AdminRoute><ErrorBoundary><Users /></ErrorBoundary></AdminRoute>} />
+                  <Route path="/no-access" element={<ProtectedRoute><NoAccess /></ProtectedRoute>} />
                 </Route>
               </Routes>
             </ErrorBoundary>

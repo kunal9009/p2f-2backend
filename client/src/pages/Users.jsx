@@ -2,6 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { api } from '../api';
 import { useToast } from '../contexts/ToastContext';
 import Modal from '../components/Modal';
+import { PANEL_SECTIONS } from '../sections';
+
+const EMPTY_FORM = {
+  name: '', email: '', password: '', role: 'warehouse', isActive: true,
+  permissionsRestricted: false,
+  permissions: [],
+};
 
 export default function Users() {
   const { toast } = useToast();
@@ -10,7 +17,7 @@ export default function Users() {
   const [modal,   setModal]   = useState(null); // null | 'new' | user object
   const [saving,  setSaving]  = useState(false);
   const [error,   setError]   = useState('');
-  const [form, setForm] = useState({ name:'', email:'', password:'', role:'warehouse', isActive:true });
+  const [form, setForm] = useState(EMPTY_FORM);
   const [resetPw, setResetPw] = useState({ userId:'', newPassword:'' });
   const [resetModal, setResetModal] = useState(false);
 
@@ -23,15 +30,44 @@ export default function Users() {
     setLoading(false);
   }
 
-  function openNew()  { setForm({ name:'',email:'',password:'',role:'warehouse',isActive:true }); setError(''); setModal('new'); }
-  function openEdit(u){ setForm({ name:u.name,email:u.email,password:'',role:u.role,isActive:u.isActive }); setError(''); setModal(u); }
+  function openNew()  { setForm(EMPTY_FORM); setError(''); setModal('new'); }
+  function openEdit(u){
+    setForm({
+      name: u.name,
+      email: u.email,
+      password: '',
+      role: u.role,
+      isActive: u.isActive,
+      permissionsRestricted: !!u.permissionsRestricted,
+      permissions: Array.isArray(u.permissions) ? u.permissions : [],
+    });
+    setError('');
+    setModal(u);
+  }
 
   function set(f,v){ setForm(x=>({...x,[f]:v})); }
 
+  function togglePermission(id) {
+    setForm(f => ({
+      ...f,
+      permissions: f.permissions.includes(id)
+        ? f.permissions.filter(x => x !== id)
+        : [...f.permissions, id],
+    }));
+  }
+
   async function handleSubmit(e) {
     e.preventDefault(); setSaving(true); setError('');
-    const payload = { name:form.name, email:form.email, role:form.role, isActive:form.isActive };
+    const payload = {
+      name: form.name,
+      email: form.email,
+      role: form.role,
+      isActive: form.isActive,
+    };
     if (modal === 'new' || form.password) payload.password = form.password;
+    // Admins always have full access; ignore the toggle for them.
+    payload.permissionsRestricted = form.role !== 'admin' && form.permissionsRestricted;
+    payload.permissions = payload.permissionsRestricted ? form.permissions : [];
     const res = modal === 'new'
       ? await api('/api/admin/users', 'POST', payload)
       : await api('/api/admin/users/' + (modal._id||modal.id), 'PUT', payload);
@@ -120,6 +156,39 @@ export default function Users() {
                 </select>
               </div>
             </div>
+
+            {form.role !== 'admin' && (
+              <div className="form-group">
+                <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={form.permissionsRestricted}
+                    onChange={e => set('permissionsRestricted', e.target.checked)}
+                  />
+                  <span>Restrict panel sections (otherwise user sees all non-admin sections)</span>
+                </label>
+                {form.permissionsRestricted && (
+                  <div style={{ marginTop:8, padding:12, border:'1px solid var(--border)', borderRadius:6, display:'grid', gridTemplateColumns:'repeat(2, 1fr)', gap:6 }}>
+                    {PANEL_SECTIONS.map(s => (
+                      <label key={s.id} style={{ display:'flex', alignItems:'center', gap:6, fontSize:13, cursor:'pointer' }}>
+                        <input
+                          type="checkbox"
+                          checked={form.permissions.includes(s.id)}
+                          onChange={() => togglePermission(s.id)}
+                        />
+                        {s.label}
+                      </label>
+                    ))}
+                  </div>
+                )}
+                {form.permissionsRestricted && form.permissions.length === 0 && (
+                  <div style={{ marginTop:6, fontSize:12, color:'#b45309' }}>
+                    ⚠️ No sections selected — this user will see only the "No access" page.
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="form-actions">
               <button type="button" className="btn btn-secondary" onClick={() => setModal(null)}>Cancel</button>
               <button type="submit" className="btn btn-primary" disabled={saving}>{saving?'Saving…':'Save User'}</button>

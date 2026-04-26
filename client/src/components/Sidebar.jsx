@@ -18,8 +18,11 @@ const NAV = [
   { id: 'settings',  label: 'Settings',     icon: '⚙️', to: '/settings' },
 ];
 
+// Admin always sees Users. For non-admins, gate every entry through
+// hasSection() so admins can hide sections per-user via permissions.
+
 export default function Sidebar({ mobileOpen, onClose }) {
-  const { user, isAdmin, logout } = useAuth();
+  const { user, isAdmin, hasSection, logout } = useAuth();
   const { dark, toggle: toggleTheme } = useTheme();
   const navigate = useNavigate();
   const [notifCount, setNotifCount] = useState(0);
@@ -70,7 +73,10 @@ export default function Sidebar({ mobileOpen, onClose }) {
     setLoading(false);
   }
 
-  const visible = NAV.filter(n => !n.adminOnly || isAdmin);
+  const visible = NAV.filter(n => {
+    if (n.adminOnly && !isAdmin) return false;
+    return hasSection(n.id);
+  });
 
   return (
     <aside className={`sidebar${mobileOpen ? ' open' : ''}`}>

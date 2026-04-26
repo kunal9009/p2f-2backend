@@ -112,6 +112,27 @@ const GST_DEFAULTS = {
   HSN_PRINTED_MATTER: '4911',
 };
 
+// ─── PANEL SECTIONS (per-user UI access) ───
+// Canonical list of sidebar/route sections. Each User can have a
+// `permissions` array containing some of these IDs to restrict which
+// sections they see in the admin panel. Admins always see everything;
+// a user whose permissions field is unset (undefined) gets the legacy
+// behavior (all non-admin sections), to avoid breaking existing users.
+const PANEL_SECTIONS = [
+  { id: 'dashboard', label: 'Dashboard' },
+  { id: 'kanban',    label: 'Kanban Board' },
+  { id: 'tasks',     label: 'All Tasks' },
+  { id: 'my-tasks',  label: 'My Tasks' },
+  { id: 'search',    label: 'Search' },
+  { id: 'team',      label: 'Team' },
+  { id: 'reports',   label: 'Reports' },
+  { id: 'calendar',  label: 'Calendar' },
+  { id: 'ai-chat',   label: 'AI Assistant' },
+  { id: 'users',     label: 'Users (admin API)' },
+  { id: 'settings',  label: 'Settings' },
+];
+const PANEL_SECTION_IDS = PANEL_SECTIONS.map(s => s.id);
+
 module.exports = {
   ROLES,
   ORDER_STATUS,
@@ -131,4 +152,6 @@ module.exports = {
   SHIPPING_PROVIDERS,
   SHIPPING_MODES,
   GST_DEFAULTS,
+  PANEL_SECTIONS,
+  PANEL_SECTION_IDS,
 };

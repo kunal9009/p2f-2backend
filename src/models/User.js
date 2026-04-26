@@ -1,21 +1,21 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
-const { ROLES } = require('../config/constants');
+const { ROLES, PANEL_SECTION_IDS } = require('../config/constants');
 
 const userSchema = new mongoose.Schema({
   name: { type: String, required: true, trim: true },
 
-  email: { 
-    type: String, 
-    required: true, 
-    unique: true, 
-    lowercase: true, 
-    trim: true 
+  email: {
+    type: String,
+    required: true,
+    unique: true,
+    lowercase: true,
+    trim: true
   },
 
-  password: { 
-    type: String, 
-    required: true, 
+  password: {
+    type: String,
+    required: true,
     select: false   // 🔴 important (hidden by default)
   },
 
@@ -27,9 +27,19 @@ const userSchema = new mongoose.Schema({
     default: ROLES.WAREHOUSE,
   },
 
-  vendorId: { 
-    type: mongoose.Schema.Types.ObjectId, 
-    ref: 'Vendor' 
+  // Sidebar/section visibility for non-admin users.
+  //   permissionsRestricted=false → see all non-admin sections (default)
+  //   permissionsRestricted=true  → only sections listed in `permissions`
+  // Admins ignore both fields and always see everything.
+  permissionsRestricted: { type: Boolean, default: false },
+  permissions: {
+    type: [{ type: String, enum: PANEL_SECTION_IDS }],
+    default: [],
+  },
+
+  vendorId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Vendor'
   },
 
   isActive: { type: Boolean, default: true },

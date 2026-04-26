@@ -4,7 +4,7 @@ const Vendor = require('../../models/Vendor');
 // POST /api/admin/users
 exports.create = async (req, res) => {
   try {
-    const { name, email, password, role, phone, vendorId, isActive } = req.body;
+    const { name, email, password, role, phone, vendorId, isActive, permissions } = req.body;
 
     if (!name || !email || !password) {
       return res.status(400).json({ success: false, message: 'name, email, and password are required' });
@@ -27,6 +27,8 @@ exports.create = async (req, res) => {
       phone,
       vendorId: vendorId || undefined,
       isActive: isActive !== undefined ? isActive : true,
+      permissionsRestricted: !!req.body.permissionsRestricted,
+      permissions: Array.isArray(permissions) ? permissions : [],
     });
 
     if (role === 'vendor' && vendorId) {
@@ -109,6 +111,12 @@ exports.update = async (req, res) => {
     if (role !== undefined) user.role = role;
     if (vendorId !== undefined) user.vendorId = vendorId;
     if (isActive !== undefined) user.isActive = isActive;
+    if (req.body.permissionsRestricted !== undefined) {
+      user.permissionsRestricted = !!req.body.permissionsRestricted;
+    }
+    if (Array.isArray(req.body.permissions)) {
+      user.permissions = req.body.permissions;
+    }
 
     await user.save();
 

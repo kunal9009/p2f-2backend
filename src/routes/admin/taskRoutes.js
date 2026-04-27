@@ -1,8 +1,8 @@
 const router = require('express').Router();
 const taskController = require('../../controllers/admin/taskController');
-const { protect, adminOrWarehouse } = require('../../middleware/auth');
+const { protect, adminOrWarehouse, adminOnly } = require('../../middleware/auth');
 
-// All task routes require auth (admin or warehouse)
+// All task routes require auth (any internal staff: admin/warehouse/dept roles)
 router.use(protect, adminOrWarehouse);
 
 // ─── SPECIAL ROUTES (must come before /:id) ───
@@ -15,20 +15,22 @@ router.get('/search',           taskController.search);          // GET  /api/ad
 router.get('/projects',         taskController.projects);        // GET  /api/admin/tasks/projects
 router.get('/tags',             taskController.tags);            // GET  /api/admin/tasks/tags
 router.get('/scheduler-status', taskController.schedulerStatus); // GET  /api/admin/tasks/scheduler-status
-router.post('/test-email',      taskController.testEmail);       // POST /api/admin/tasks/test-email
+router.post('/test-email',      adminOnly, taskController.testEmail);       // POST /api/admin/tasks/test-email
 
 // ─── TASK CRUD ───
-router.get('/',    taskController.list);    // GET    /api/admin/tasks
-router.post('/',   taskController.create);  // POST   /api/admin/tasks
-router.get('/:id', taskController.getById); // GET    /api/admin/tasks/:id
-router.put('/:id', taskController.update);  // PUT    /api/admin/tasks/:id
-router.delete('/:id', taskController.remove); // DELETE /api/admin/tasks/:id
+// Reads are open to all internal staff. Writes (create/update/delete/status)
+// are admin-only — non-admin departments are view-only.
+router.get('/',    taskController.list);              // GET    /api/admin/tasks
+router.post('/',   adminOnly, taskController.create); // POST   /api/admin/tasks
+router.get('/:id', taskController.getById);           // GET    /api/admin/tasks/:id
+router.put('/:id', adminOnly, taskController.update); // PUT    /api/admin/tasks/:id
+router.delete('/:id', adminOnly, taskController.remove); // DELETE /api/admin/tasks/:id
 
 // ─── STATUS MANAGEMENT ───
-router.patch('/:id/status', taskController.updateStatus); // PATCH /api/admin/tasks/:id/status
+router.patch('/:id/status', adminOnly, taskController.updateStatus); // PATCH /api/admin/tasks/:id/status
 
 // ─── COMMENTS ───
-router.post('/:id/comments',               taskController.addComment);    // POST   /api/admin/tasks/:id/comments
-router.delete('/:id/comments/:commentId',  taskController.deleteComment); // DELETE /api/admin/tasks/:id/comments/:commentId
+router.post('/:id/comments',               adminOnly, taskController.addComment);    // POST   /api/admin/tasks/:id/comments
+router.delete('/:id/comments/:commentId',  adminOnly, taskController.deleteComment); // DELETE /api/admin/tasks/:id/comments/:commentId
 
 module.exports = router;

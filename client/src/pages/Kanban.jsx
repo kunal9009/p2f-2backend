@@ -18,8 +18,9 @@ const COLS = [
 const PRIORITY_COLOR = { critical:'#ef4444', high:'#f97316', medium:'#3b82f6', low:'#10b981' };
 
 export default function Kanban() {
-  const { hasSection } = useAuth();
-  const canAddTask = hasSection('add-task');
+  const { isAdmin } = useAuth();
+  // Only admin can drag, quick-add, or open the new-task modal. Others view.
+  const canEdit = isAdmin;
   const [columns,      setColumns]      = useState({});
   const [loading,      setLoading]      = useState(true);
   const [projectFilter,setProjectFilter]= useState('');
@@ -70,7 +71,7 @@ export default function Kanban() {
             onChange={e => setProjectFilter(e.target.value)}
             style={{ width: 180 }}
           />
-          {canAddTask && <button className="btn btn-primary" onClick={() => setModal({ type:'new', status:'todo' })}>+ New Task</button>}
+          {canEdit && <button className="btn btn-primary" onClick={() => setModal({ type:'new', status:'todo' })}>+ New Task</button>}
         </div>
       </div>
 
@@ -82,8 +83,8 @@ export default function Kanban() {
             <div
               key={col.status}
               className="kanban-col"
-              onDragOver={onDragOver}
-              onDrop={e => onDrop(e, col.status)}
+              onDragOver={canEdit ? onDragOver : undefined}
+              onDrop={canEdit ? e => onDrop(e, col.status) : undefined}
             >
               <div className="kanban-col-title">
                 <span style={{ color: col.color }}>●</span> {col.label}
@@ -102,8 +103,8 @@ export default function Kanban() {
                   <div
                     key={task._id}
                     className="kanban-card"
-                    draggable
-                    onDragStart={e => onDragStart(e, task._id)}
+                    draggable={canEdit}
+                    onDragStart={canEdit ? e => onDragStart(e, task._id) : undefined}
                     onClick={() => setModal({ type:'edit', taskId: task._id })}
                   >
                     <div className="kanban-card-id">{task.taskId}</div>
@@ -133,23 +134,25 @@ export default function Kanban() {
                 })}
               </div>
 
-              {/* Quick-add */}
-              <div className="quick-add">
-                <input
-                  className="quick-add-input"
-                  placeholder="+ Quick add…"
-                  value={quickAdd[col.status] || ''}
-                  onChange={e => setQuickAdd(q => ({...q, [col.status]: e.target.value}))}
-                  onKeyDown={e => { if (e.key === 'Enter') handleQuickAdd(col.status); }}
-                />
-                <button
-                  className="quick-add-btn"
-                  onClick={() => handleQuickAdd(col.status)}
-                  disabled={saving === col.status}
-                >
-                  {saving === col.status ? '…' : '➕'}
-                </button>
-              </div>
+              {/* Quick-add (admin only) */}
+              {canEdit && (
+                <div className="quick-add">
+                  <input
+                    className="quick-add-input"
+                    placeholder="+ Quick add…"
+                    value={quickAdd[col.status] || ''}
+                    onChange={e => setQuickAdd(q => ({...q, [col.status]: e.target.value}))}
+                    onKeyDown={e => { if (e.key === 'Enter') handleQuickAdd(col.status); }}
+                  />
+                  <button
+                    className="quick-add-btn"
+                    onClick={() => handleQuickAdd(col.status)}
+                    disabled={saving === col.status}
+                  >
+                    {saving === col.status ? '…' : '➕'}
+                  </button>
+                </div>
+              )}
             </div>
           ))}
         </div>

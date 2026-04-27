@@ -11,8 +11,9 @@ const SCOLOR = { todo:'#64748b', in_progress:'#f59e0b', testing:'#8b5cf6', on_ho
 const PCOLOR = { critical:'#ef4444', high:'#f97316', medium:'#3b82f6', low:'#10b981' };
 
 export default function MyTasks() {
-  const { hasSection } = useAuth();
-  const canAddTask = hasSection('add-task');
+  const { isAdmin } = useAuth();
+  // Only admin can change status / add tasks. Others are view-only.
+  const canEdit = isAdmin;
   const [groups,  setGroups]  = useState({});
   const [loading, setLoading] = useState(true);
   const [modal,   setModal]   = useState(null);
@@ -46,7 +47,7 @@ export default function MyTasks() {
           <h2>My Tasks</h2>
           <p className="text-muted">{total} assigned · {completed} completed</p>
         </div>
-        {canAddTask && <button className="btn btn-primary" onClick={() => setModal('new')}>+ New Task</button>}
+        {canEdit && <button className="btn btn-primary" onClick={() => setModal('new')}>+ New Task</button>}
       </div>
 
       {/* Progress bar */}
@@ -96,16 +97,22 @@ export default function MyTasks() {
                       </div>
                     )}
                   </div>
-                  <select
-                    className="status-select"
-                    value={t.status}
-                    style={{ color: SCOLOR[t.status] }}
-                    onChange={e => changeStatus(t._id, e.target.value)}
-                  >
-                    {['todo','in_progress','testing','on_hold','completed','cancelled'].map(s => (
-                      <option key={s} value={s}>{s.replace('_',' ')}</option>
-                    ))}
-                  </select>
+                  {canEdit ? (
+                    <select
+                      className="status-select"
+                      value={t.status}
+                      style={{ color: SCOLOR[t.status] }}
+                      onChange={e => changeStatus(t._id, e.target.value)}
+                    >
+                      {['todo','in_progress','testing','on_hold','completed','cancelled'].map(s => (
+                        <option key={s} value={s}>{s.replace('_',' ')}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <span className="priority-badge" style={{ background:SCOLOR[t.status]+'20', color:SCOLOR[t.status], fontWeight:600 }}>
+                      {t.status.replace('_',' ')}
+                    </span>
+                  )}
                 </div>
               ))}
             </div>

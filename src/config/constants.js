@@ -122,11 +122,12 @@ const GST_DEFAULTS = {
 // sections they see in the admin panel. Admins always see everything;
 // a user whose permissions field is unset (undefined) gets the legacy
 // behavior (all non-admin sections), to avoid breaking existing users.
+// "Add Task" intentionally not listed: task creation/editing is hard
+// admin-only and not a per-user togglable section.
 const PANEL_SECTIONS = [
   { id: 'dashboard', label: 'Dashboard' },
   { id: 'kanban',    label: 'Kanban Board' },
   { id: 'tasks',     label: 'All Tasks' },
-  { id: 'add-task',  label: 'Add Task (create new)' },
   { id: 'my-tasks',  label: 'My Tasks' },
   { id: 'search',    label: 'Search' },
   { id: 'team',      label: 'Team' },

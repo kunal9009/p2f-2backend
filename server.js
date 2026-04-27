@@ -42,6 +42,12 @@ const vendorPaymentRoutes = require('./src/routes/vendor/paymentRoutes');
 
 const app = express();
 
+// Render terminates TLS at one proxy hop, so trust exactly one proxy.
+// Without this, express-rate-limit refuses to use X-Forwarded-For
+// (ERR_ERL_UNEXPECTED_X_FORWARDED_FOR) and would key limits on the
+// proxy's IP instead of the real client.
+app.set('trust proxy', 1);
+
 // ─── DEBUG ENV CHECK ───
 console.log("ENV CHECK → MONGODB_URI:", process.env.MONGODB_URI ? "[set]" : "NOT SET ← deploy will fail");
 console.log("ENV CHECK → PORT:", process.env.PORT || "(using default 3000)");

@@ -80,7 +80,7 @@ export default function App() {
                   <Route path="/dashboard" element={<SectionRoute section="dashboard"><ErrorBoundary><Dashboard /></ErrorBoundary></SectionRoute>} />
                   <Route path="/kanban"    element={<SectionRoute section="kanban"><ErrorBoundary><Kanban /></ErrorBoundary></SectionRoute>} />
                   <Route path="/tasks"     element={<SectionRoute section="tasks"><ErrorBoundary><Tasks /></ErrorBoundary></SectionRoute>} />
-                  <Route path="/tasks/new" element={<AdminRoute><ErrorBoundary><AddTask /></ErrorBoundary></AdminRoute>} />
+                  <Route path="/tasks/new" element={<SectionRoute section="add-task"><ErrorBoundary><AddTask /></ErrorBoundary></SectionRoute>} />
                   <Route path="/my-tasks"  element={<SectionRoute section="my-tasks"><ErrorBoundary><MyTasks /></ErrorBoundary></SectionRoute>} />
                   <Route path="/search"    element={<SectionRoute section="search"><ErrorBoundary><Search /></ErrorBoundary></SectionRoute>} />
                   <Route path="/team"      element={<SectionRoute section="team"><ErrorBoundary><Team /></ErrorBoundary></SectionRoute>} />

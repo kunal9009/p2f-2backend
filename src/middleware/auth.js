@@ -60,7 +60,15 @@ const authorize = (...roles) => {
 // Convenience guards
 const adminOnly = authorize(ROLES.ADMIN);
 const vendorOnly = authorize(ROLES.VENDOR);
-const adminOrWarehouse = authorize(ROLES.ADMIN, ROLES.WAREHOUSE);
+// Internal staff = admin + warehouse + department roles. Used on routes
+// that any in-house user (other than vendors) should be able to call.
+const adminOrWarehouse = authorize(
+  ROLES.ADMIN,
+  ROLES.WAREHOUSE,
+  ROLES.MARKETING,
+  ROLES.CONTENT,
+  ROLES.SALES,
+);
 const adminOrVendor = authorize(ROLES.ADMIN, ROLES.VENDOR);
 
 module.exports = {

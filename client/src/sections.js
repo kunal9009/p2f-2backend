@@ -4,6 +4,7 @@ export const PANEL_SECTIONS = [
   { id: 'dashboard', label: 'Dashboard' },
   { id: 'kanban',    label: 'Kanban Board' },
   { id: 'tasks',     label: 'All Tasks' },
+  { id: 'add-task',  label: 'Add Task (create new)' },
   { id: 'my-tasks',  label: 'My Tasks' },
   { id: 'search',    label: 'Search' },
   { id: 'team',      label: 'Team' },

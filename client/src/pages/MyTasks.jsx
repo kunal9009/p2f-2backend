@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../api';
+import { useAuth } from '../contexts/AuthContext';
 import Modal from '../components/Modal';
 import TaskForm from '../components/TaskForm';
 import TaskDetail from '../components/TaskDetail';
@@ -10,6 +11,8 @@ const SCOLOR = { todo:'#64748b', in_progress:'#f59e0b', testing:'#8b5cf6', on_ho
 const PCOLOR = { critical:'#ef4444', high:'#f97316', medium:'#3b82f6', low:'#10b981' };
 
 export default function MyTasks() {
+  const { hasSection } = useAuth();
+  const canAddTask = hasSection('add-task');
   const [groups,  setGroups]  = useState({});
   const [loading, setLoading] = useState(true);
   const [modal,   setModal]   = useState(null);
@@ -43,7 +46,7 @@ export default function MyTasks() {
           <h2>My Tasks</h2>
           <p className="text-muted">{total} assigned · {completed} completed</p>
         </div>
-        <button className="btn btn-primary" onClick={() => setModal('new')}>+ New Task</button>
+        {canAddTask && <button className="btn btn-primary" onClick={() => setModal('new')}>+ New Task</button>}
       </div>
 
       {/* Progress bar */}

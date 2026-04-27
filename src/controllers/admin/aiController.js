@@ -117,18 +117,52 @@ exports.assistantChat = async (req, res) => {
       return res.status(400).json({ success: false, message: 'message is required' });
     }
 
-    // Lightweight context: count of user's open tasks, top priorities
+    // Pull live data so the assistant can answer specific questions about
+    // who is assigned to what, deadlines, statuses, etc. — not just counts.
     const userId = req.user.id;
-    const [open, overdue, mine] = await Promise.all([
+    const [users, openTasks, recentCompleted, openCount, overdueCount, myCount] = await Promise.all([
+      User.find({ isActive: { $ne: false } })
+        .select('name email role')
+        .limit(100),
+      Task.find({ status: { $nin: ['completed', 'cancelled'] } })
+        .select('taskId title project status priority dueDate assignedTo developers tags')
+        .sort({ priority: 1, dueDate: 1, createdAt: -1 })
+        .limit(60),
+      Task.find({ status: 'completed' })
+        .select('taskId title project completedAt')
+        .sort({ completedAt: -1 })
+        .limit(15),
       Task.countDocuments({ status: { $nin: ['completed', 'cancelled'] } }),
       Task.countDocuments({ status: { $nin: ['completed', 'cancelled'] }, dueDate: { $lt: new Date() } }),
       Task.countDocuments({ 'assignedTo.userId': userId, status: { $nin: ['completed', 'cancelled'] } }),
     ]);
 
+    const fmtDate = d => (d ? new Date(d).toISOString().slice(0, 10) : '—');
+    const namesOf = arr => (arr || []).map(a => a.name).filter(Boolean).join(', ') || '—';
+
+    const usersBlock = users
+      .map(u => `- ${u.name} (${u.role})`)
+      .join('\n');
+
+    const tasksBlock = openTasks
+      .map(t =>
+        `- [${t.taskId || t._id}] "${t.title}" — project: ${t.project || '—'} · ` +
+        `status: ${t.status} · priority: ${t.priority} · due: ${fmtDate(t.dueDate)} · ` +
+        `assignedTo: ${namesOf(t.assignedTo)} · developers: ${namesOf(t.developers)}` +
+        (t.tags && t.tags.length ? ` · tags: ${t.tags.join(', ')}` : '')
+      )
+      .join('\n');
+
+    const completedBlock = recentCompleted
+      .map(t => `- [${t.taskId || t._id}] "${t.title}" (${t.project || '—'}) · completed: ${fmtDate(t.completedAt)}`)
+      .join('\n');
+
     const context =
-      `Signed-in user: ${req.user.name} (${req.user.role}).\n` +
-      `System totals: ${open} open tasks, ${overdue} overdue. ` +
-      `This user has ${mine} open tasks assigned.`;
+      `Signed-in user: ${req.user.name} (role: ${req.user.role}).\n` +
+      `Totals: ${openCount} open tasks, ${overdueCount} overdue, ${myCount} assigned to this user.\n\n` +
+      `# Active users\n${usersBlock || '(none)'}\n\n` +
+      `# Open tasks (showing ${openTasks.length})\n${tasksBlock || '(none)'}\n\n` +
+      `# Recently completed (last ${recentCompleted.length})\n${completedBlock || '(none)'}`;
 
     const data = await aiService.assistantChat({
       message: message.trim(),

@@ -8,7 +8,7 @@ const NAV = [
   { id: 'dashboard', label: 'Dashboard',   icon: '📊', to: '/dashboard' },
   { id: 'kanban',    label: 'Kanban Board', icon: '📌', to: '/kanban'   },
   { id: 'tasks',     label: 'All Tasks',    icon: '📋', to: '/tasks'    },
-  { id: 'add-task',  label: 'Add Task',     icon: '➕', to: '/tasks/new', adminOnly: true },
+  { id: 'add-task',  label: 'Add Task',     icon: '➕', to: '/tasks/new' },
   { id: 'my-tasks',  label: 'My Tasks',     icon: '🙋', to: '/my-tasks', notif: true },
   { id: 'search',    label: 'Search',       icon: '🔍', to: '/search'   },
   { id: 'team',      label: 'Team',         icon: '👥', to: '/team'     },

@@ -1,11 +1,10 @@
 // Mirror of src/config/constants.js → PANEL_SECTIONS.
 // Keep this in sync with the backend canonical list.
-// "Add Task" is intentionally not here — task creation/editing is hard
-// admin-only and not a per-user togglable section.
 export const PANEL_SECTIONS = [
   { id: 'dashboard', label: 'Dashboard' },
   { id: 'kanban',    label: 'Kanban Board' },
   { id: 'tasks',     label: 'All Tasks' },
+  { id: 'add-task',  label: 'Add Task (create new)' },
   { id: 'my-tasks',  label: 'My Tasks' },
   { id: 'search',    label: 'Search' },
   { id: 'team',      label: 'Team' },

@@ -71,6 +71,24 @@ const adminOrWarehouse = authorize(
 );
 const adminOrVendor = authorize(ROLES.ADMIN, ROLES.VENDOR);
 
+// requireSection(id) — passes if user is admin OR has the section in their
+// per-user permissions whitelist. Used to widen specific routes (e.g.
+// POST /api/admin/tasks) beyond admin-only without giving the whole role
+// blanket write access. Assumes `protect` ran first (req.user populated).
+const requireSection = (sectionId) => (req, res, next) => {
+  const u = req.user || {};
+  if (u.role === ROLES.ADMIN) return next();
+  // Legacy: if a user's permissions array isn't restricted, allow them.
+  // Otherwise the whitelist must include the section id.
+  const restricted = !!u.permissionsRestricted;
+  const granted = Array.isArray(u.permissions) && u.permissions.includes(sectionId);
+  if (!restricted || granted) return next();
+  return res.status(403).json({
+    success: false,
+    message: `You do not have permission for "${sectionId}"`,
+  });
+};
+
 module.exports = {
   protect,
   authorize,
@@ -78,4 +96,5 @@ module.exports = {
   vendorOnly,
   adminOrWarehouse,
   adminOrVendor,
+  requireSection,
 };

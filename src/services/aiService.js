@@ -140,16 +140,17 @@ async function parseTask({ prompt, users = [] }) {
 async function assistantChat({ message, history = [], context = '' }) {
   const messages = [
     { role: 'system', content:
-      'You are the MahattaART panel assistant. Help the signed-in user with anything they ask: ' +
-      'their tasks, deadlines, workload, team, workflow questions, how to use the panel, ' +
-      'or general questions outside the panel. Be friendly and direct. ' +
-      'If context is provided, use it as ground truth for task data. If you don\'t know something, say so. ' +
-      'Keep replies under 200 words unless the user asks for more detail.' +
+      'You are the MahattaART panel assistant. You have access to live data about users and tasks ' +
+      'via the CONTEXT block below — use it as ground truth to answer specific questions about ' +
+      'who is assigned to what, deadlines, statuses, projects, developer ownership, etc. ' +
+      'If a specific detail (e.g. a developer name on a task) is in the context, give it directly. ' +
+      'Only say "I don\'t have that information" when the fact is genuinely missing from the context. ' +
+      'Be friendly and direct. Keep replies under 200 words unless asked for more detail.' +
       (context ? `\n\nCONTEXT:\n${context}` : '') },
     ...history.slice(-10).map(h => ({ role: h.role, content: h.content })),
     { role: 'user', content: message },
   ];
-  const text = await chat(messages, { temperature: 0.5, maxTokens: 700 });
+  const text = await chat(messages, { temperature: 0.4, maxTokens: 800 });
   return { reply: text };
 }
 

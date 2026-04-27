@@ -28,8 +28,10 @@ const SORT_COLS = {
 export default function Tasks() {
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
-  const { hasSection } = useAuth();
-  const canAddTask = hasSection('add-task');
+  const { isAdmin } = useAuth();
+  // Only admin can create / edit / change status / delete tasks. All other
+  // roles (warehouse + dept roles) are view-only.
+  const canEdit = isAdmin;
 
   const [tasks,    setTasks]    = useState([]);
   const [users,    setUsers]    = useState([]);
@@ -217,7 +219,7 @@ export default function Tasks() {
         <div style={{ display:'flex', gap:8 }}>
           <button className="btn btn-secondary" onClick={load} title="Refresh">↻</button>
           <button className="btn btn-secondary" onClick={exportCSV}>⬇ CSV</button>
-          {canAddTask && <button className="btn btn-primary" onClick={() => setModal('new')}>+ New Task</button>}
+          {canEdit && <button className="btn btn-primary" onClick={() => setModal('new')}>+ New Task</button>}
         </div>
       </div>
 
@@ -263,7 +265,7 @@ export default function Tasks() {
       </div>
 
       {/* Bulk action bar */}
-      {selected.length > 0 && (
+      {canEdit && selected.length > 0 && (
         <div className="bulk-bar">
           <span style={{ fontWeight:600 }}>{selected.length} selected</span>
           <span style={{ color:'var(--muted)', fontSize:12 }}>Status →</span>
@@ -288,15 +290,17 @@ export default function Tasks() {
             icon={hasFilters ? '🔍' : '📋'}
             title={hasFilters ? 'No tasks match your filters' : 'No tasks yet'}
             message={hasFilters ? 'Try adjusting or clearing your filters.' : 'Create your first task to get started.'}
-            action={!hasFilters && canAddTask && <button className="btn btn-primary" onClick={() => setModal('new')}>+ Create Task</button>}
+            action={!hasFilters && canEdit && <button className="btn btn-primary" onClick={() => setModal('new')}>+ Create Task</button>}
           />
         ) : (
           <table className="data-table">
             <thead>
               <tr>
-                <th style={{ width:32 }}>
-                  <input type="checkbox" checked={selected.length === tasks.length && tasks.length > 0} onChange={toggleAll} />
-                </th>
+                {canEdit && (
+                  <th style={{ width:32 }}>
+                    <input type="checkbox" checked={selected.length === tasks.length && tasks.length > 0} onChange={toggleAll} />
+                  </th>
+                )}
                 <SortTh col="taskId">ID</SortTh>
                 <SortTh col="title">Title</SortTh>
                 <th>Project</th>
@@ -312,7 +316,9 @@ export default function Tasks() {
                 const isOverdue = t.dueDate && new Date(t.dueDate) < new Date() && !['completed','cancelled'].includes(t.status);
                 return (
                   <tr key={t._id} className={selected.includes(t._id) ? 'row-selected' : ''}>
-                    <td><input type="checkbox" checked={selected.includes(t._id)} onChange={() => toggleSelect(t._id)} /></td>
+                    {canEdit && (
+                      <td><input type="checkbox" checked={selected.includes(t._id)} onChange={() => toggleSelect(t._id)} /></td>
+                    )}
                     <td style={{ fontFamily:'monospace', fontSize:12, color:'var(--muted)', cursor:'pointer', whiteSpace:'nowrap' }} onClick={() => setModal(t._id)}>{t.taskId}</td>
                     <td style={{ cursor:'pointer', fontWeight:500, maxWidth:240 }} onClick={() => setModal(t._id)}>
                       <div style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{t.title}</div>
@@ -324,26 +330,34 @@ export default function Tasks() {
                     </td>
                     <td style={{ color:'var(--muted)', fontSize:13, whiteSpace:'nowrap' }}>{t.project || '—'}</td>
                     <td>
-                      <select
-                        className="status-select"
-                        value={t.priority}
-                        style={{ color:PCOLOR[t.priority], fontWeight:600, fontSize:12 }}
-                        onChange={e => { e.stopPropagation(); changePriority(t._id, e.target.value); }}
-                        onClick={e => e.stopPropagation()}
-                      >
-                        {PRIORITIES.map(p => <option key={p} value={p}>{p}</option>)}
-                      </select>
+                      {canEdit ? (
+                        <select
+                          className="status-select"
+                          value={t.priority}
+                          style={{ color:PCOLOR[t.priority], fontWeight:600, fontSize:12 }}
+                          onChange={e => { e.stopPropagation(); changePriority(t._id, e.target.value); }}
+                          onClick={e => e.stopPropagation()}
+                        >
+                          {PRIORITIES.map(p => <option key={p} value={p}>{p}</option>)}
+                        </select>
+                      ) : (
+                        <span style={{ color:PCOLOR[t.priority], fontWeight:600, fontSize:12 }}>{t.priority}</span>
+                      )}
                     </td>
                     <td>
-                      <select
-                        className="status-select"
-                        value={t.status}
-                        style={{ color:SCOLOR[t.status], fontWeight:600, fontSize:12 }}
-                        onChange={e => { e.stopPropagation(); changeStatus(t._id, e.target.value); }}
-                        onClick={e => e.stopPropagation()}
-                      >
-                        {STATUSES.map(s => <option key={s} value={s}>{s.replace('_',' ')}</option>)}
-                      </select>
+                      {canEdit ? (
+                        <select
+                          className="status-select"
+                          value={t.status}
+                          style={{ color:SCOLOR[t.status], fontWeight:600, fontSize:12 }}
+                          onChange={e => { e.stopPropagation(); changeStatus(t._id, e.target.value); }}
+                          onClick={e => e.stopPropagation()}
+                        >
+                          {STATUSES.map(s => <option key={s} value={s}>{s.replace('_',' ')}</option>)}
+                        </select>
+                      ) : (
+                        <span style={{ color:SCOLOR[t.status], fontWeight:600, fontSize:12 }}>{t.status.replace('_',' ')}</span>
+                      )}
                     </td>
                     <td style={{ fontSize:12, whiteSpace:'nowrap', color: isOverdue ? '#ef4444' : 'var(--muted)' }}>
                       {t.dueDate ? new Date(t.dueDate).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'2-digit'}) : '—'}
@@ -360,7 +374,9 @@ export default function Tasks() {
                       </div>
                     </td>
                     <td>
-                      <button className="btn-icon" onClick={e => { e.stopPropagation(); deleteTask(t._id); }} title="Delete">🗑</button>
+                      {canEdit && (
+                        <button className="btn-icon" onClick={e => { e.stopPropagation(); deleteTask(t._id); }} title="Delete">🗑</button>
+                      )}
                     </td>
                   </tr>
                 );

@@ -3,11 +3,17 @@ import { api } from '../api';
 import { useToast } from '../contexts/ToastContext';
 import { useAuth } from '../contexts/AuthContext';
 
-const STATUSES   = ['todo','in_progress','testing','on_hold','completed','cancelled'];
-const PRIORITIES = ['critical','high','medium','low'];
-const PRODUCTS   = ['wallpaper','wallart','p2f'];
-const PANELS     = ['backend','frontend'];
-const MANAGER    = 'Kunal';
+const STATUSES    = ['todo','in_progress','testing','on_hold','completed','cancelled'];
+const PRIORITIES  = ['critical','high','medium','low'];
+const DEPARTMENTS = ['marketing','content','sales'];
+const PRODUCTS    = [
+  { value: 'wallpaper',      label: 'Wallpaper' },
+  { value: 'wallart',        label: 'Wallart' },
+  { value: 'p2f',            label: 'P2F' },
+  { value: 'entire-website', label: 'Entire Website' },
+];
+const PANELS      = ['backend','frontend'];
+const MANAGER     = 'Kunal';
 
 export default function TaskForm({ taskId, defaultStatus, defaultDueDate, onClose, onSaved }) {
   const { toast }             = useToast();
@@ -345,7 +351,10 @@ export default function TaskForm({ taskId, defaultStatus, defaultDueDate, onClos
       <div className="form-row">
         <div className="form-group">
           <label>Department</label>
-          <input value={form.department} onChange={e => set('department', e.target.value)} placeholder="e.g. Engineering" />
+          <select value={form.department} onChange={e => set('department', e.target.value)}>
+            <option value="">— Select department —</option>
+            {DEPARTMENTS.map(d => <option key={d} value={d}>{d.charAt(0).toUpperCase() + d.slice(1)}</option>)}
+          </select>
         </div>
         <div className="form-group">
           <label>Owner Name</label>
@@ -357,7 +366,10 @@ export default function TaskForm({ taskId, defaultStatus, defaultDueDate, onClos
         <div className="form-row">
           <div className="form-group">
             <label>Change Requested From (department)</label>
-            <input value={form.changeFromDepartment} onChange={e => set('changeFromDepartment', e.target.value)} placeholder="e.g. Marketing" />
+            <select value={form.changeFromDepartment} onChange={e => set('changeFromDepartment', e.target.value)}>
+              <option value="">— Select department —</option>
+              {DEPARTMENTS.map(d => <option key={d} value={d}>{d.charAt(0).toUpperCase() + d.slice(1)}</option>)}
+            </select>
           </div>
           <div className="form-group">
             <label>Change Request Date</label>
@@ -367,7 +379,10 @@ export default function TaskForm({ taskId, defaultStatus, defaultDueDate, onClos
       ) : (
         <div className="form-group">
           <label>Change Requested From (department)</label>
-          <input value={form.changeFromDepartment} onChange={e => set('changeFromDepartment', e.target.value)} placeholder="e.g. Marketing" />
+          <select value={form.changeFromDepartment} onChange={e => set('changeFromDepartment', e.target.value)}>
+            <option value="">— Select department —</option>
+            {DEPARTMENTS.map(d => <option key={d} value={d}>{d.charAt(0).toUpperCase() + d.slice(1)}</option>)}
+          </select>
         </div>
       )}
 
@@ -377,7 +392,7 @@ export default function TaskForm({ taskId, defaultStatus, defaultDueDate, onClos
             <label>Product</label>
             <select value={form.product} onChange={e => set('product', e.target.value)}>
               <option value="">— Select product —</option>
-              {PRODUCTS.map(p => <option key={p} value={p}>{p}</option>)}
+              {PRODUCTS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
             </select>
           </div>
           <div className="form-group">
@@ -393,7 +408,7 @@ export default function TaskForm({ taskId, defaultStatus, defaultDueDate, onClos
           <label>Product</label>
           <select value={form.product} onChange={e => set('product', e.target.value)}>
             <option value="">— Select product —</option>
-            {PRODUCTS.map(p => <option key={p} value={p}>{p}</option>)}
+            {PRODUCTS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
           </select>
         </div>
       )}

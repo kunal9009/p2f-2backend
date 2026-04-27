@@ -18,9 +18,12 @@ const TASK_PRIORITY = {
   CRITICAL: 'critical',
 };
 
-// ─── PRODUCT / PANEL ENUMS ───
-const TASK_PRODUCTS = ['wallpaper', 'wallart', 'p2f'];
-const TASK_PANELS   = ['backend', 'frontend'];
+// ─── PRODUCT / PANEL / DEPARTMENT ENUMS ───
+const TASK_PRODUCTS    = ['wallpaper', 'wallart', 'p2f', 'entire-website'];
+const TASK_PANELS      = ['backend', 'frontend'];
+// Departments mirror the non-admin role names (see ROLES in constants.js).
+// Used as the enum for `department` and `changeFromDepartment`.
+const TASK_DEPARTMENTS = ['marketing', 'content', 'sales'];
 
 // ─── COMMENT SUB-SCHEMA ───
 const commentSchema = new mongoose.Schema({
@@ -88,10 +91,10 @@ const taskSchema = new mongoose.Schema({
   actualHours: { type: Number, min: 0 },
 
   // ── New fields (Apr 2026) ──
-  department: { type: String, trim: true },
+  department: { type: String, enum: [...TASK_DEPARTMENTS, ''], lowercase: true, trim: true },
   ownerName:  { type: String, trim: true },
   // Change-request metadata: which department asked for the change and when.
-  changeFromDepartment: { type: String, trim: true },
+  changeFromDepartment: { type: String, enum: [...TASK_DEPARTMENTS, ''], lowercase: true, trim: true },
   changeRequestDate:    { type: Date },
   // Product line + which side of the stack the task touches.
   product: { type: String, enum: TASK_PRODUCTS, lowercase: true, trim: true },
@@ -135,3 +138,4 @@ module.exports.TASK_STATUS = TASK_STATUS;
 module.exports.TASK_PRIORITY = TASK_PRIORITY;
 module.exports.TASK_PRODUCTS = TASK_PRODUCTS;
 module.exports.TASK_PANELS = TASK_PANELS;
+module.exports.TASK_DEPARTMENTS = TASK_DEPARTMENTS;

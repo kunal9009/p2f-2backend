@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { api } from '../api';
+import { useAuth } from '../contexts/AuthContext';
 import Modal from '../components/Modal';
 import TaskForm from '../components/TaskForm';
 import TaskDetail from '../components/TaskDetail';
@@ -17,6 +18,8 @@ const COLS = [
 const PRIORITY_COLOR = { critical:'#ef4444', high:'#f97316', medium:'#3b82f6', low:'#10b981' };
 
 export default function Kanban() {
+  const { hasSection } = useAuth();
+  const canAddTask = hasSection('add-task');
   const [columns,      setColumns]      = useState({});
   const [loading,      setLoading]      = useState(true);
   const [projectFilter,setProjectFilter]= useState('');
@@ -67,7 +70,7 @@ export default function Kanban() {
             onChange={e => setProjectFilter(e.target.value)}
             style={{ width: 180 }}
           />
-          <button className="btn btn-primary" onClick={() => setModal({ type:'new', status:'todo' })}>+ New Task</button>
+          {canAddTask && <button className="btn btn-primary" onClick={() => setModal({ type:'new', status:'todo' })}>+ New Task</button>}
         </div>
       </div>
 

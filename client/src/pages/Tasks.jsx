@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api, getToken } from '../api';
 import { useToast } from '../contexts/ToastContext';
+import { useAuth } from '../contexts/AuthContext';
 import Modal from '../components/Modal';
 import TaskForm from '../components/TaskForm';
 import TaskDetail from '../components/TaskDetail';
@@ -27,6 +28,8 @@ const SORT_COLS = {
 export default function Tasks() {
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
+  const { hasSection } = useAuth();
+  const canAddTask = hasSection('add-task');
 
   const [tasks,    setTasks]    = useState([]);
   const [users,    setUsers]    = useState([]);
@@ -214,7 +217,7 @@ export default function Tasks() {
         <div style={{ display:'flex', gap:8 }}>
           <button className="btn btn-secondary" onClick={load} title="Refresh">↻</button>
           <button className="btn btn-secondary" onClick={exportCSV}>⬇ CSV</button>
-          <button className="btn btn-primary" onClick={() => setModal('new')}>+ New Task</button>
+          {canAddTask && <button className="btn btn-primary" onClick={() => setModal('new')}>+ New Task</button>}
         </div>
       </div>
 
@@ -285,7 +288,7 @@ export default function Tasks() {
             icon={hasFilters ? '🔍' : '📋'}
             title={hasFilters ? 'No tasks match your filters' : 'No tasks yet'}
             message={hasFilters ? 'Try adjusting or clearing your filters.' : 'Create your first task to get started.'}
-            action={!hasFilters && <button className="btn btn-primary" onClick={() => setModal('new')}>+ Create Task</button>}
+            action={!hasFilters && canAddTask && <button className="btn btn-primary" onClick={() => setModal('new')}>+ Create Task</button>}
           />
         ) : (
           <table className="data-table">

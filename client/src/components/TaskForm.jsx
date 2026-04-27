@@ -4,6 +4,9 @@ import { useToast } from '../contexts/ToastContext';
 
 const STATUSES   = ['todo','in_progress','testing','on_hold','completed','cancelled'];
 const PRIORITIES = ['critical','high','medium','low'];
+const PRODUCTS   = ['wallpaper','wallart','p2f'];
+const PANELS     = ['backend','frontend'];
+const MANAGER    = 'Kunal';
 
 export default function TaskForm({ taskId, defaultStatus, defaultDueDate, onClose, onSaved }) {
   const { toast }             = useToast();
@@ -16,8 +19,11 @@ export default function TaskForm({ taskId, defaultStatus, defaultDueDate, onClos
   const [form, setForm] = useState({
     title: '', description: '', status: defaultStatus || 'todo',
     priority: 'medium', project: '', dueDate: defaultDueDate || '', reminderDate: '',
-    tags: '', assignedTo: [], developers: [], estimatedHours: '', actualHours: '',
+    tags: '', assignedTo: [], developers: [], actualHours: '',
     emailNotificationsEnabled: true,
+    department: '', ownerName: '',
+    changeFromDepartment: '', changeRequestDate: '',
+    product: '', panel: '',
   });
 
   useEffect(() => {
@@ -44,9 +50,14 @@ export default function TaskForm({ taskId, defaultStatus, defaultDueDate, onClos
           tags:           (t.tags || []).join(', '),
           assignedTo:     (t.assignedTo || []).map(a => a.userId),
           developers:     (t.developers || []).map(a => a.userId),
-          estimatedHours: t.estimatedHours || '',
           actualHours:    t.actualHours    || '',
           emailNotificationsEnabled: t.emailNotificationsEnabled !== false,
+          department:           t.department || '',
+          ownerName:            t.ownerName  || '',
+          changeFromDepartment: t.changeFromDepartment || '',
+          changeRequestDate:    t.changeRequestDate ? t.changeRequestDate.slice(0, 10) : '',
+          product: t.product || '',
+          panel:   t.panel   || '',
         });
       }
       setLoading(false);
@@ -153,8 +164,10 @@ export default function TaskForm({ taskId, defaultStatus, defaultDueDate, onClos
       developers:   selectedDevs.map(u => ({ userId: u._id||u.id, name: u.name, email: u.email })),
       dueDate:        form.dueDate        || undefined,
       reminderDate:   form.reminderDate   || undefined,
-      estimatedHours: form.estimatedHours ? Number(form.estimatedHours) : undefined,
       actualHours:    form.actualHours    ? Number(form.actualHours)    : undefined,
+      changeRequestDate: form.changeRequestDate || undefined,
+      product: form.product || undefined,
+      panel:   form.panel   || undefined,
     };
 
     const res = await api(
@@ -307,8 +320,47 @@ export default function TaskForm({ taskId, defaultStatus, defaultDueDate, onClos
 
       <div className="form-row">
         <div className="form-group">
-          <label>Est. Hours</label>
-          <input type="number" min="0" step="0.5" value={form.estimatedHours} onChange={e => set('estimatedHours', e.target.value)} placeholder="e.g. 4" />
+          <label>Department</label>
+          <input value={form.department} onChange={e => set('department', e.target.value)} placeholder="e.g. Engineering" />
+        </div>
+        <div className="form-group">
+          <label>Owner Name</label>
+          <input value={form.ownerName} onChange={e => set('ownerName', e.target.value)} placeholder="Task owner" />
+        </div>
+      </div>
+
+      <div className="form-row">
+        <div className="form-group">
+          <label>Change Requested From (department)</label>
+          <input value={form.changeFromDepartment} onChange={e => set('changeFromDepartment', e.target.value)} placeholder="e.g. Marketing" />
+        </div>
+        <div className="form-group">
+          <label>Change Request Date</label>
+          <input type="date" value={form.changeRequestDate} onChange={e => set('changeRequestDate', e.target.value)} />
+        </div>
+      </div>
+
+      <div className="form-row">
+        <div className="form-group">
+          <label>Product</label>
+          <select value={form.product} onChange={e => set('product', e.target.value)}>
+            <option value="">— Select product —</option>
+            {PRODUCTS.map(p => <option key={p} value={p}>{p}</option>)}
+          </select>
+        </div>
+        <div className="form-group">
+          <label>Panel</label>
+          <select value={form.panel} onChange={e => set('panel', e.target.value)}>
+            <option value="">— Select panel —</option>
+            {PANELS.map(p => <option key={p} value={p}>{p}</option>)}
+          </select>
+        </div>
+      </div>
+
+      <div className="form-row">
+        <div className="form-group">
+          <label>Managed by</label>
+          <input value={MANAGER} readOnly disabled style={{ background:'var(--bg)', cursor:'not-allowed' }} />
         </div>
         <div className="form-group">
           <label>Actual Hours</label>

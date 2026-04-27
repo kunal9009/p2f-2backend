@@ -296,6 +296,8 @@ exports.create = async (req, res) => {
       title, description, project, status, priority,
       assignedTo, developers, dueDate, reminderDate,
       estimatedHours, tags, emailNotificationsEnabled,
+      department, ownerName, changeFromDepartment, changeRequestDate,
+      product, panel,
     } = req.body;
 
     const task = await Task.create({
@@ -313,6 +315,12 @@ exports.create = async (req, res) => {
       estimatedHours,
       tags: tags || [],
       emailNotificationsEnabled: emailNotificationsEnabled !== false,
+      department,
+      ownerName,
+      changeFromDepartment,
+      changeRequestDate: changeRequestDate ? new Date(changeRequestDate) : undefined,
+      product,
+      panel,
       createdById: req.user.id,
       createdByName: req.user.name,
       statusHistory: [{
@@ -348,6 +356,8 @@ exports.update = async (req, res) => {
       'title', 'description', 'project', 'priority',
       'dueDate', 'reminderDate', 'estimatedHours', 'actualHours',
       'tags', 'emailNotificationsEnabled',
+      'department', 'ownerName', 'changeFromDepartment', 'changeRequestDate',
+      'product', 'panel',
     ];
 
     // Track if assignees changed

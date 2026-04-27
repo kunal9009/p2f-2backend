@@ -204,6 +204,26 @@ exports.dashboard = async (req, res) => {
       }).sort('-completedAt').limit(5).select('taskId title completedAt assignedTo project'),
     ]);
 
+    // Currently ongoing tasks (status = in_progress)
+    const ongoingTasks = await Task.find({
+      ...baseFilter,
+      status: TASK_STATUS.IN_PROGRESS,
+    }).sort({ dueDate: 1, priority: -1 }).limit(15)
+      .select('taskId title status priority dueDate assignedTo project department');
+
+    // Upcoming tasks: status=todo and dueDate >= today (or no due date but
+    // not overdue), sorted by dueDate ASC. Respects baseFilter date range.
+    const upcomingTasks = await Task.find({
+      ...baseFilter,
+      status: TASK_STATUS.TODO,
+      $or: [
+        { dueDate: { $gte: todayStart } },
+        { dueDate: { $exists: false } },
+        { dueDate: null },
+      ],
+    }).sort({ dueDate: 1, priority: -1 }).limit(15)
+      .select('taskId title status priority dueDate assignedTo project department');
+
     // Weekly activity (last 4 weeks)
     const weeklyActivity = await Task.aggregate([
       {
@@ -255,6 +275,8 @@ exports.dashboard = async (req, res) => {
         assigneeBreakdown,
         weeklyActivity,
         recentlyCompleted,
+        ongoingTasks,
+        upcomingTasks,
       },
     });
   } catch (err) {

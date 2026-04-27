@@ -3,6 +3,10 @@ const ROLES = {
   ADMIN: 'admin',
   WAREHOUSE: 'warehouse',
   VENDOR: 'vendor',
+  // Department roles — internal staff scoped by department
+  MARKETING: 'marketing',
+  CONTENT:   'content',
+  SALES:     'sales',
 };
 
 // ─── ORDER STATUS PIPELINE ───
@@ -118,6 +122,8 @@ const GST_DEFAULTS = {
 // sections they see in the admin panel. Admins always see everything;
 // a user whose permissions field is unset (undefined) gets the legacy
 // behavior (all non-admin sections), to avoid breaking existing users.
+// "Add Task" intentionally not listed: task creation/editing is hard
+// admin-only and not a per-user togglable section.
 const PANEL_SECTIONS = [
   { id: 'dashboard', label: 'Dashboard' },
   { id: 'kanban',    label: 'Kanban Board' },

@@ -146,6 +146,9 @@ export default function Users() {
                   <option value="admin">admin</option>
                   <option value="warehouse">warehouse</option>
                   <option value="vendor">vendor</option>
+                  <option value="marketing">marketing</option>
+                  <option value="content">content</option>
+                  <option value="sales">sales</option>
                 </select>
               </div>
               <div className="form-group">

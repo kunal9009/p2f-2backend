@@ -150,21 +150,31 @@ export default function TaskDetail({ taskId, onClose, onUpdated }) {
             <h3 style={{ margin:0, fontSize:18, lineHeight:1.3 }}>{task.title}</h3>
           </div>
           <div style={{ display:'flex', gap:6, flexShrink:0, flexWrap:'wrap' }}>
-            <button className="btn btn-secondary btn-sm" onClick={() => setEditing(true)}>✏️ Edit</button>
-            <button className="btn btn-secondary btn-sm" onClick={duplicateTask} title="Duplicate task">⧉</button>
-            {isAdmin && <button className="btn btn-sm" style={{ background:'#fee2e2', color:'#991b1b' }} onClick={deleteTask} title="Delete task">🗑</button>}
+            {isAdmin && (
+              <>
+                <button className="btn btn-secondary btn-sm" onClick={() => setEditing(true)}>✏️ Edit</button>
+                <button className="btn btn-secondary btn-sm" onClick={duplicateTask} title="Duplicate task">⧉</button>
+                <button className="btn btn-sm" style={{ background:'#fee2e2', color:'#991b1b' }} onClick={deleteTask} title="Delete task">🗑</button>
+              </>
+            )}
           </div>
         </div>
 
         {/* Status + Priority row */}
         <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'center' }}>
-          <select
-            value={task.status}
-            style={{ padding:'4px 10px', borderRadius:6, border:'1px solid var(--border)', fontWeight:600, fontSize:13, color:SCOLOR[task.status], cursor:'pointer' }}
-            onChange={e => changeStatus(e.target.value)}
-          >
-            {STATUSES.map(s => <option key={s} value={s}>{s.replace('_',' ')}</option>)}
-          </select>
+          {isAdmin ? (
+            <select
+              value={task.status}
+              style={{ padding:'4px 10px', borderRadius:6, border:'1px solid var(--border)', fontWeight:600, fontSize:13, color:SCOLOR[task.status], cursor:'pointer' }}
+              onChange={e => changeStatus(e.target.value)}
+            >
+              {STATUSES.map(s => <option key={s} value={s}>{s.replace('_',' ')}</option>)}
+            </select>
+          ) : (
+            <span style={{ padding:'4px 10px', borderRadius:6, border:'1px solid var(--border)', fontWeight:600, fontSize:13, color:SCOLOR[task.status] }}>
+              {task.status.replace('_',' ')}
+            </span>
+          )}
           <span style={{ background:PCOLOR[task.priority]+'20', color:PCOLOR[task.priority], fontSize:12, fontWeight:700, padding:'4px 10px', borderRadius:6 }}>
             {task.priority}
           </span>
@@ -297,20 +307,22 @@ export default function TaskDetail({ taskId, onClose, onUpdated }) {
               </div>
             )}
 
-            {/* Add comment */}
-            <form onSubmit={postComment} style={{ display:'flex', gap:8 }}>
-              <textarea
-                value={comment}
-                onChange={e => setComment(e.target.value)}
-                rows={2}
-                placeholder="Add a comment…"
-                style={{ flex:1, borderRadius:8, border:'1px solid var(--border)', padding:'8px 12px', fontSize:13, resize:'vertical', fontFamily:'inherit' }}
-                onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) postComment(e); }}
-              />
-              <button type="submit" className="btn btn-primary btn-sm" disabled={posting || !comment.trim()} style={{ alignSelf:'flex-end' }}>
-                {posting ? '…' : 'Post'}
-              </button>
-            </form>
+            {/* Add comment (admin only) */}
+            {isAdmin && (
+              <form onSubmit={postComment} style={{ display:'flex', gap:8 }}>
+                <textarea
+                  value={comment}
+                  onChange={e => setComment(e.target.value)}
+                  rows={2}
+                  placeholder="Add a comment…"
+                  style={{ flex:1, borderRadius:8, border:'1px solid var(--border)', padding:'8px 12px', fontSize:13, resize:'vertical', fontFamily:'inherit' }}
+                  onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) postComment(e); }}
+                />
+                <button type="submit" className="btn btn-primary btn-sm" disabled={posting || !comment.trim()} style={{ alignSelf:'flex-end' }}>
+                  {posting ? '…' : 'Post'}
+                </button>
+              </form>
+            )}
           </div>
         )}
 

@@ -52,6 +52,7 @@ export default function Tasks() {
   const [confirm,  setConfirm]  = useState(null);
   const [bulkAssignOpen, setBulkAssignOpen] = useState(false);
   const [bulkAssignUser, setBulkAssignUser] = useState('');
+  const [editingTaskId,  setEditingTaskId]  = useState(null);
 
   const [filters, setFilters] = useState({
     search:     searchParams.get('search')     || '',
@@ -473,12 +474,28 @@ export default function Tasks() {
         </Modal>
       )}
 
+      {/* Edit task modal — same popup UX as New Task */}
+      {editingTaskId && (
+        <Modal title="Modify Task" onClose={() => setEditingTaskId(null)} wide>
+          <TaskForm
+            taskId={editingTaskId}
+            onClose={() => setEditingTaskId(null)}
+            onSaved={() => { setEditingTaskId(null); load(); }}
+          />
+        </Modal>
+      )}
+
       {/* Task detail drawer */}
       {modal && modal !== 'new' && (
         <div className="drawer-overlay" onClick={e => { if (e.target === e.currentTarget) setModal(null); }}>
           <div className="drawer">
             <button className="drawer-close" onClick={() => setModal(null)}>✕</button>
-            <TaskDetail taskId={modal} onClose={() => setModal(null)} onUpdated={load} />
+            <TaskDetail
+              taskId={modal}
+              onClose={() => setModal(null)}
+              onUpdated={load}
+              onEdit={(id) => { setModal(null); setEditingTaskId(id); }}
+            />
           </div>
         </div>
       )}

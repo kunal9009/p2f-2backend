@@ -20,7 +20,48 @@ function startScheduler() {
     await runCustomReminders();
   });
 
-  console.log('[TaskScheduler] Scheduler started (daily 9 AM reminders + hourly custom reminders).');
+  // ── Daily at 00:05: deadline rollover ──
+  // If a task's deadline has passed and the status hasn't been moved to a
+  // terminal state (completed / cancelled), push the deadline forward by
+  // one day. The original deadline is recorded in deadlineRollovers[] so an
+  // admin can later attach a reason via PATCH /:id/rollover-reason.
+  cron.schedule('5 0 * * *', async () => {
+    console.log('[TaskScheduler] Running daily deadline rollover...');
+    await runDeadlineRollover();
+  });
+
+  console.log('[TaskScheduler] Scheduler started (reminders + nightly deadline rollover).');
+}
+
+// ─── DEADLINE ROLLOVER ───
+async function runDeadlineRollover() {
+  try {
+    const now = new Date();
+    const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+
+    const tasks = await Task.find({
+      status: { $nin: [TASK_STATUS.COMPLETED, TASK_STATUS.CANCELLED] },
+      dueDate: { $lt: todayStart },
+    });
+
+    for (const task of tasks) {
+      const oldDue = task.dueDate;
+      const newDue = new Date(oldDue.getTime() + 24 * 60 * 60 * 1000);
+      task.deadlineRollovers = task.deadlineRollovers || [];
+      task.deadlineRollovers.push({ from: oldDue, to: newDue, reason: '' });
+      task.dueDate = newDue;
+      // Reset overdue email flag so the next overdue alert can fire on the
+      // new date if the task lapses again.
+      task.overdueReminderSent = false;
+      await task.save();
+    }
+
+    if (tasks.length) {
+      console.log(`[TaskScheduler] Rolled over ${tasks.length} task deadline(s).`);
+    }
+  } catch (err) {
+    console.error('[TaskScheduler] Rollover job error:', err.message);
+  }
 }
 
 // ─── DUE SOON: tasks due within the next 24 hours ───

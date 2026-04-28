@@ -3,9 +3,9 @@ import { api } from '../api';
 import { useToast } from '../contexts/ToastContext';
 import { useAuth } from '../contexts/AuthContext';
 
-const STATUSES    = ['todo','in_progress','testing','on_hold','completed','cancelled'];
+const STATUSES    = ['not_started','todo','under_discussion','in_progress','testing','on_hold','completed','cancelled'];
 const PRIORITIES  = ['critical','high','medium','low'];
-const DEPARTMENTS = ['marketing','content','sales'];
+const DEPARTMENTS = ['marketing','content','sales','product','it'];
 const PRODUCTS    = [
   { value: 'wallpaper',      label: 'Wallpaper' },
   { value: 'wallart',        label: 'Wallart' },
@@ -18,9 +18,13 @@ const MANAGER     = 'Kunal';
 export default function TaskForm({ taskId, defaultStatus, defaultDueDate, onClose, onSaved }) {
   const { toast }             = useToast();
   const { isAdmin }           = useAuth();
-  // Non-admin users with the 'add-task' permission see a stripped-down form
-  // with only: Title, Description, Priority, Department, Owner Name,
-  // Change Requested From, Product. Admin sees the full form.
+  // Form modes:
+  //  - non-admin (creating)                   → 6 fields
+  //  - admin editing an existing task         → compact (no AI, no project /
+  //    tags / developers / assignees / email toggle)
+  //  - admin creating new                     → full form
+  const editingExisting = Boolean(taskId);
+  const compact         = !isAdmin || (isAdmin && editingExisting);
   const [users,    setUsers]    = useState([]);
   const [projects, setProjects] = useState([]);
   const [allTags,  setAllTags]  = useState([]);
@@ -197,8 +201,8 @@ export default function TaskForm({ taskId, defaultStatus, defaultDueDate, onClos
     <form className="task-form" onSubmit={handleSubmit}>
       {error && <div className="alert alert-error" style={{ marginBottom: 12 }}>{error}</div>}
 
-      {/* ── AI NL prompt (admin only) ── */}
-      {isAdmin && (
+      {/* ── AI NL prompt (admin creating new only) ── */}
+      {!compact && (
         <div className="ai-nl-box">
           <div className="ai-nl-label">
             <span>✨ Describe the task in plain English</span>
@@ -229,7 +233,7 @@ export default function TaskForm({ taskId, defaultStatus, defaultDueDate, onClos
       <div className="form-group">
         <label className="label-with-ai">
           <span>Description</span>
-          {isAdmin && (
+          {!compact && (
             <button type="button" className="btn-ai-inline"
                     disabled={aiBusy.desc || !form.title.trim()}
                     onClick={() => runAi('desc', aiGenerateDescription)}
@@ -286,7 +290,7 @@ export default function TaskForm({ taskId, defaultStatus, defaultDueDate, onClos
         </div>
       )}
 
-      {isAdmin && (
+      {!compact && (
         <div className="form-group">
           <label>Project</label>
           <input
@@ -301,10 +305,10 @@ export default function TaskForm({ taskId, defaultStatus, defaultDueDate, onClos
         </div>
       )}
 
-      {isAdmin && (
+      {!compact ? (
         <div className="form-row">
           <div className="form-group">
-            <label>Due Date</label>
+            <label>Deadline Date</label>
             <input type="date" value={form.dueDate} onChange={e => set('dueDate', e.target.value)} />
           </div>
           <div className="form-group">
@@ -312,9 +316,14 @@ export default function TaskForm({ taskId, defaultStatus, defaultDueDate, onClos
             <input type="date" value={form.reminderDate} onChange={e => set('reminderDate', e.target.value)} />
           </div>
         </div>
+      ) : isAdmin && (
+        <div className="form-group">
+          <label>Deadline Date</label>
+          <input type="date" value={form.dueDate} onChange={e => set('dueDate', e.target.value)} />
+        </div>
       )}
 
-      {isAdmin && (
+      {!compact && (
         <div className="form-group">
           <label className="label-with-ai">
             <span>Tags (comma-separated)</span>
@@ -362,29 +371,8 @@ export default function TaskForm({ taskId, defaultStatus, defaultDueDate, onClos
         </div>
       </div>
 
-      {isAdmin ? (
-        <div className="form-row">
-          <div className="form-group">
-            <label>Change Requested From (department)</label>
-            <select value={form.changeFromDepartment} onChange={e => set('changeFromDepartment', e.target.value)}>
-              <option value="">— Select department —</option>
-              {DEPARTMENTS.map(d => <option key={d} value={d}>{d.charAt(0).toUpperCase() + d.slice(1)}</option>)}
-            </select>
-          </div>
-          <div className="form-group">
-            <label>Change Request Date</label>
-            <input type="date" value={form.changeRequestDate} onChange={e => set('changeRequestDate', e.target.value)} />
-          </div>
-        </div>
-      ) : (
-        <div className="form-group">
-          <label>Change Requested From (department)</label>
-          <select value={form.changeFromDepartment} onChange={e => set('changeFromDepartment', e.target.value)}>
-            <option value="">— Select department —</option>
-            {DEPARTMENTS.map(d => <option key={d} value={d}>{d.charAt(0).toUpperCase() + d.slice(1)}</option>)}
-          </select>
-        </div>
-      )}
+      {/* "Change Requested From" / "Change Request Date" removed —
+          Department field above already captures the requesting department. */}
 
       {isAdmin ? (
         <div className="form-row">
@@ -413,7 +401,7 @@ export default function TaskForm({ taskId, defaultStatus, defaultDueDate, onClos
         </div>
       )}
 
-      {isAdmin && (
+      {!compact && (
         <div className="form-row">
           <div className="form-group">
             <label>Managed by</label>
@@ -426,7 +414,7 @@ export default function TaskForm({ taskId, defaultStatus, defaultDueDate, onClos
         </div>
       )}
 
-      {isAdmin && (
+      {!compact && (
         <div className="form-group">
           <label>Developers</label>
           <MultiSelectDropdown
@@ -440,7 +428,7 @@ export default function TaskForm({ taskId, defaultStatus, defaultDueDate, onClos
         </div>
       )}
 
-      {isAdmin && (
+      {!compact && (
         <div className="form-group">
           <label>Assign To</label>
           <div className="assignee-grid">
@@ -462,8 +450,8 @@ export default function TaskForm({ taskId, defaultStatus, defaultDueDate, onClos
         </div>
       )}
 
-      {/* Email notifications toggle (admin only) */}
-      {isAdmin && (
+      {/* Email notifications toggle (full form only) */}
+      {!compact && (
         <label style={{ display:'flex', alignItems:'center', gap:10, cursor:'pointer', fontSize:13, padding:'8px 0', borderTop:'1px solid var(--border)' }}>
           <input
             type="checkbox"

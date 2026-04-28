@@ -2,12 +2,14 @@ const mongoose = require('mongoose');
 
 // ─── TASK STATUS PIPELINE ───
 const TASK_STATUS = {
-  TODO: 'todo',
-  IN_PROGRESS: 'in_progress',
-  TESTING: 'testing',
-  COMPLETED: 'completed',
-  ON_HOLD: 'on_hold',
-  CANCELLED: 'cancelled',
+  NOT_STARTED:      'not_started',
+  TODO:             'todo',
+  UNDER_DISCUSSION: 'under_discussion',
+  IN_PROGRESS:      'in_progress',
+  TESTING:          'testing',
+  COMPLETED:        'completed',
+  ON_HOLD:          'on_hold',
+  CANCELLED:        'cancelled',
 };
 
 // ─── TASK PRIORITY ───
@@ -23,7 +25,7 @@ const TASK_PRODUCTS    = ['wallpaper', 'wallart', 'p2f', 'entire-website'];
 const TASK_PANELS      = ['backend', 'frontend'];
 // Departments mirror the non-admin role names (see ROLES in constants.js).
 // Used as the enum for `department` and `changeFromDepartment`.
-const TASK_DEPARTMENTS = ['marketing', 'content', 'sales'];
+const TASK_DEPARTMENTS = ['marketing', 'content', 'sales', 'product', 'it'];
 
 // ─── COMMENT SUB-SCHEMA ───
 const commentSchema = new mongoose.Schema({
@@ -41,6 +43,18 @@ const statusHistorySchema = new mongoose.Schema({
   remark: { type: String, trim: true },
   changedAt: { type: Date, default: Date.now },
 });
+
+// ─── DEADLINE ROLLOVER SUB-SCHEMA ───
+// One entry per auto-rollover. Reason is filled in by admin afterwards
+// via PATCH /api/admin/tasks/:id/rollover-reason.
+const deadlineRolloverSchema = new mongoose.Schema({
+  from: { type: Date, required: true },
+  to:   { type: Date, required: true },
+  reason: { type: String, trim: true, default: '' },
+  reasonById:   { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  reasonByName: { type: String },
+  reasonAt:     { type: Date },
+}, { timestamps: { createdAt: true, updatedAt: false } });
 
 // ─── MAIN TASK SCHEMA ───
 const taskSchema = new mongoose.Schema({
@@ -104,6 +118,7 @@ const taskSchema = new mongoose.Schema({
 
   comments: [commentSchema],
   statusHistory: [statusHistorySchema],
+  deadlineRollovers: [deadlineRolloverSchema],
 
   emailNotificationsEnabled: { type: Boolean, default: true },
 

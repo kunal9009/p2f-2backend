@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const taskController = require('../../controllers/admin/taskController');
-const { protect, adminOrWarehouse, adminOnly } = require('../../middleware/auth');
+const { protect, adminOrWarehouse, adminOnly, requireSection } = require('../../middleware/auth');
 
 // All task routes require auth (any internal staff: admin/warehouse/dept roles)
 router.use(protect, adminOrWarehouse);
@@ -18,16 +18,20 @@ router.get('/scheduler-status', taskController.schedulerStatus); // GET  /api/ad
 router.post('/test-email',      adminOnly, taskController.testEmail);       // POST /api/admin/tasks/test-email
 
 // ─── TASK CRUD ───
-// Reads are open to all internal staff. Writes (create/update/delete/status)
-// are admin-only — non-admin departments are view-only.
-router.get('/',    taskController.list);              // GET    /api/admin/tasks
-router.post('/',   adminOnly, taskController.create); // POST   /api/admin/tasks
-router.get('/:id', taskController.getById);           // GET    /api/admin/tasks/:id
-router.put('/:id', adminOnly, taskController.update); // PUT    /api/admin/tasks/:id
-router.delete('/:id', adminOnly, taskController.remove); // DELETE /api/admin/tasks/:id
+// Reads are open to all internal staff. Create is open to admin OR any user
+// with the `add-task` section permission. Edit / delete / status changes
+// stay admin-only — non-admin users are view-only after creating.
+router.get('/',    taskController.list);                                 // GET    /api/admin/tasks
+router.post('/',   requireSection('add-task'), taskController.create);   // POST   /api/admin/tasks
+router.get('/:id', taskController.getById);                              // GET    /api/admin/tasks/:id
+router.put('/:id', adminOnly, taskController.update);                    // PUT    /api/admin/tasks/:id
+router.delete('/:id', adminOnly, taskController.remove);                 // DELETE /api/admin/tasks/:id
 
 // ─── STATUS MANAGEMENT ───
 router.patch('/:id/status', adminOnly, taskController.updateStatus); // PATCH /api/admin/tasks/:id/status
+
+// ─── DEADLINE ROLLOVER REASON ───
+router.patch('/:id/rollover-reason', adminOnly, taskController.setRolloverReason); // PATCH /api/admin/tasks/:id/rollover-reason
 
 // ─── COMMENTS ───
 router.post('/:id/comments',               adminOnly, taskController.addComment);    // POST   /api/admin/tasks/:id/comments

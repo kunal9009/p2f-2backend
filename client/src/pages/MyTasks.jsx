@@ -6,8 +6,12 @@ import TaskForm from '../components/TaskForm';
 import TaskDetail from '../components/TaskDetail';
 import EmptyState from '../components/EmptyState';
 
-const STATUS_ORDER = ['in_progress','todo','testing','on_hold','completed','cancelled'];
-const SCOLOR = { todo:'#64748b', in_progress:'#f59e0b', testing:'#8b5cf6', on_hold:'#94a3b8', completed:'#10b981', cancelled:'#ef4444' };
+const STATUS_ORDER = ['in_progress','under_discussion','todo','not_started','testing','on_hold','completed','cancelled'];
+const SCOLOR = {
+  not_started:'#94a3b8', todo:'#64748b', under_discussion:'#0ea5e9',
+  in_progress:'#f59e0b', testing:'#8b5cf6', on_hold:'#94a3b8',
+  completed:'#10b981', cancelled:'#ef4444',
+};
 const PCOLOR = { critical:'#ef4444', high:'#f97316', medium:'#3b82f6', low:'#10b981' };
 
 export default function MyTasks() {
@@ -104,7 +108,7 @@ export default function MyTasks() {
                       style={{ color: SCOLOR[t.status] }}
                       onChange={e => changeStatus(t._id, e.target.value)}
                     >
-                      {['todo','in_progress','testing','on_hold','completed','cancelled'].map(s => (
+                      {['not_started','todo','under_discussion','in_progress','testing','on_hold','completed','cancelled'].map(s => (
                         <option key={s} value={s}>{s.replace('_',' ')}</option>
                       ))}
                     </select>

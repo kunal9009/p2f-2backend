@@ -1,15 +1,30 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../api';
 import { useToast } from '../contexts/ToastContext';
+import { useAuth } from '../contexts/AuthContext';
 
-const STATUSES   = ['todo','in_progress','testing','on_hold','completed','cancelled'];
-const PRIORITIES = ['critical','high','medium','low'];
-const PRODUCTS   = ['wallpaper','wallart','p2f'];
-const PANELS     = ['backend','frontend'];
-const MANAGER    = 'Kunal';
+const STATUSES    = ['not_started','todo','under_discussion','in_progress','testing','on_hold','completed','cancelled'];
+const PRIORITIES  = ['critical','high','medium','low'];
+const DEPARTMENTS = ['marketing','content','sales','product','it'];
+const PRODUCTS    = [
+  { value: 'wallpaper',      label: 'Wallpaper' },
+  { value: 'wallart',        label: 'Wallart' },
+  { value: 'p2f',            label: 'P2F' },
+  { value: 'entire-website', label: 'Entire Website' },
+];
+const PANELS      = ['backend','frontend'];
+const MANAGER     = 'Kunal';
 
 export default function TaskForm({ taskId, defaultStatus, defaultDueDate, onClose, onSaved }) {
   const { toast }             = useToast();
+  const { isAdmin }           = useAuth();
+  // Form modes:
+  //  - non-admin (creating)                   → 6 fields
+  //  - admin editing an existing task         → compact (no AI, no project /
+  //    tags / developers / assignees / email toggle)
+  //  - admin creating new                     → full form
+  const editingExisting = Boolean(taskId);
+  const compact         = !isAdmin || (isAdmin && editingExisting);
   const [users,    setUsers]    = useState([]);
   const [projects, setProjects] = useState([]);
   const [allTags,  setAllTags]  = useState([]);
@@ -186,27 +201,29 @@ export default function TaskForm({ taskId, defaultStatus, defaultDueDate, onClos
     <form className="task-form" onSubmit={handleSubmit}>
       {error && <div className="alert alert-error" style={{ marginBottom: 12 }}>{error}</div>}
 
-      {/* ── AI NL prompt ── */}
-      <div className="ai-nl-box">
-        <div className="ai-nl-label">
-          <span>✨ Describe the task in plain English</span>
-          <span className="ai-nl-hint">AI will fill title, due date, assignees, priority</span>
+      {/* ── AI NL prompt (admin creating new only) ── */}
+      {!compact && (
+        <div className="ai-nl-box">
+          <div className="ai-nl-label">
+            <span>✨ Describe the task in plain English</span>
+            <span className="ai-nl-hint">AI will fill title, due date, assignees, priority</span>
+          </div>
+          <div className="ai-nl-row">
+            <input
+              className="ai-nl-input"
+              value={nlPrompt}
+              onChange={e => setNlPrompt(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); runAi('parse', aiParseTask); } }}
+              placeholder='e.g. "By Friday, Faiz ko homepage redesign assign karo, high priority"'
+            />
+            <button type="button" className="btn btn-primary btn-sm"
+                    disabled={!nlPrompt.trim() || aiBusy.parse}
+                    onClick={() => runAi('parse', aiParseTask)}>
+              {aiBusy.parse ? '…' : 'Parse'}
+            </button>
+          </div>
         </div>
-        <div className="ai-nl-row">
-          <input
-            className="ai-nl-input"
-            value={nlPrompt}
-            onChange={e => setNlPrompt(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); runAi('parse', aiParseTask); } }}
-            placeholder='e.g. "By Friday, Faiz ko homepage redesign assign karo, high priority"'
-          />
-          <button type="button" className="btn btn-primary btn-sm"
-                  disabled={!nlPrompt.trim() || aiBusy.parse}
-                  onClick={() => runAi('parse', aiParseTask)}>
-            {aiBusy.parse ? '…' : 'Parse'}
-          </button>
-        </div>
-      </div>
+      )}
 
       <div className="form-group">
         <label>Title *</label>
@@ -216,112 +233,137 @@ export default function TaskForm({ taskId, defaultStatus, defaultDueDate, onClos
       <div className="form-group">
         <label className="label-with-ai">
           <span>Description</span>
-          <button type="button" className="btn-ai-inline"
-                  disabled={aiBusy.desc || !form.title.trim()}
-                  onClick={() => runAi('desc', aiGenerateDescription)}
-                  title="Generate description from title">
-            {aiBusy.desc ? '…' : '✨ Generate with AI'}
-          </button>
+          {!compact && (
+            <button type="button" className="btn-ai-inline"
+                    disabled={aiBusy.desc || !form.title.trim()}
+                    onClick={() => runAi('desc', aiGenerateDescription)}
+                    title="Generate description from title">
+              {aiBusy.desc ? '…' : '✨ Generate with AI'}
+            </button>
+          )}
         </label>
         <textarea rows={3} value={form.description} onChange={e => set('description', e.target.value)} placeholder="Describe the task…" />
       </div>
 
-      <div className="form-row">
-        <div className="form-group">
-          <label>Status</label>
-          <select value={form.status} onChange={e => set('status', e.target.value)}>
-            {STATUSES.map(s => <option key={s} value={s}>{s.replace('_',' ')}</option>)}
-          </select>
+      {isAdmin ? (
+        <div className="form-row">
+          <div className="form-group">
+            <label>Status</label>
+            <select value={form.status} onChange={e => set('status', e.target.value)}>
+              {STATUSES.map(s => <option key={s} value={s}>{s.replace('_',' ')}</option>)}
+            </select>
+          </div>
+          <div className="form-group">
+            <label className="label-with-ai">
+              <span>Priority</span>
+              <button type="button" className="btn-ai-inline"
+                      disabled={aiBusy.prio || !form.title.trim()}
+                      onClick={() => runAi('prio', aiSuggestPriority)}
+                      title="Let AI suggest a priority">
+                {aiBusy.prio ? '…' : '✨ Suggest'}
+              </button>
+            </label>
+            <select value={form.priority} onChange={e => set('priority', e.target.value)}>
+              {PRIORITIES.map(p => <option key={p} value={p}>{p}</option>)}
+            </select>
+            {aiPriorityHint && (
+              <div className="ai-hint">
+                AI suggests <strong>{aiPriorityHint.priority}</strong>
+                {aiPriorityHint.reasoning && <> — <em>{aiPriorityHint.reasoning}</em></>}
+                {aiPriorityHint.priority !== form.priority && (
+                  <button type="button" className="btn-link"
+                          onClick={() => { set('priority', aiPriorityHint.priority); setAiPriorityHint(null); }}>
+                    Apply
+                  </button>
+                )}
+                <button type="button" className="btn-link" onClick={() => setAiPriorityHint(null)}>Dismiss</button>
+              </div>
+            )}
+          </div>
         </div>
+      ) : (
         <div className="form-group">
-          <label className="label-with-ai">
-            <span>Priority</span>
-            <button type="button" className="btn-ai-inline"
-                    disabled={aiBusy.prio || !form.title.trim()}
-                    onClick={() => runAi('prio', aiSuggestPriority)}
-                    title="Let AI suggest a priority">
-              {aiBusy.prio ? '…' : '✨ Suggest'}
-            </button>
-          </label>
+          <label>Priority</label>
           <select value={form.priority} onChange={e => set('priority', e.target.value)}>
             {PRIORITIES.map(p => <option key={p} value={p}>{p}</option>)}
           </select>
-          {aiPriorityHint && (
-            <div className="ai-hint">
-              AI suggests <strong>{aiPriorityHint.priority}</strong>
-              {aiPriorityHint.reasoning && <> — <em>{aiPriorityHint.reasoning}</em></>}
-              {aiPriorityHint.priority !== form.priority && (
-                <button type="button" className="btn-link"
-                        onClick={() => { set('priority', aiPriorityHint.priority); setAiPriorityHint(null); }}>
-                  Apply
-                </button>
-              )}
-              <button type="button" className="btn-link" onClick={() => setAiPriorityHint(null)}>Dismiss</button>
+        </div>
+      )}
+
+      {!compact && (
+        <div className="form-group">
+          <label>Project</label>
+          <input
+            list="project-suggestions"
+            value={form.project}
+            onChange={e => set('project', e.target.value)}
+            placeholder="Project or team name"
+          />
+          <datalist id="project-suggestions">
+            {projects.map(p => <option key={p} value={p} />)}
+          </datalist>
+        </div>
+      )}
+
+      {!compact ? (
+        <div className="form-row">
+          <div className="form-group">
+            <label>Deadline Date</label>
+            <input type="date" value={form.dueDate} onChange={e => set('dueDate', e.target.value)} />
+          </div>
+          <div className="form-group">
+            <label>Reminder Date</label>
+            <input type="date" value={form.reminderDate} onChange={e => set('reminderDate', e.target.value)} />
+          </div>
+        </div>
+      ) : isAdmin && (
+        <div className="form-group">
+          <label>Deadline Date</label>
+          <input type="date" value={form.dueDate} onChange={e => set('dueDate', e.target.value)} />
+        </div>
+      )}
+
+      {!compact && (
+        <div className="form-group">
+          <label className="label-with-ai">
+            <span>Tags (comma-separated)</span>
+            <button type="button" className="btn-ai-inline"
+                    disabled={aiBusy.tags || !form.title.trim()}
+                    onClick={() => runAi('tags', aiSuggestTags)}
+                    title="Let AI suggest tags">
+              {aiBusy.tags ? '…' : '✨ Suggest tags'}
+            </button>
+          </label>
+          <input
+            value={form.tags}
+            onChange={e => set('tags', e.target.value)}
+            placeholder="bug, feature, urgent"
+          />
+          {allTags.length > 0 && (
+            <div style={{ display:'flex', flexWrap:'wrap', gap:4, marginTop:4 }}>
+              {allTags.filter(t => !form.tags.split(',').map(x=>x.trim()).includes(t)).slice(0,12).map(t => (
+                <span
+                  key={t}
+                  className="tag-chip"
+                  style={{ cursor:'pointer' }}
+                  title="Click to add"
+                  onClick={() => set('tags', form.tags ? form.tags + ', ' + t : t)}
+                >
+                  {t}
+                </span>
+              ))}
             </div>
           )}
         </div>
-      </div>
-
-      <div className="form-group">
-        <label>Project</label>
-        <input
-          list="project-suggestions"
-          value={form.project}
-          onChange={e => set('project', e.target.value)}
-          placeholder="Project or team name"
-        />
-        <datalist id="project-suggestions">
-          {projects.map(p => <option key={p} value={p} />)}
-        </datalist>
-      </div>
-
-      <div className="form-row">
-        <div className="form-group">
-          <label>Due Date</label>
-          <input type="date" value={form.dueDate} onChange={e => set('dueDate', e.target.value)} />
-        </div>
-        <div className="form-group">
-          <label>Reminder Date</label>
-          <input type="date" value={form.reminderDate} onChange={e => set('reminderDate', e.target.value)} />
-        </div>
-      </div>
-
-      <div className="form-group">
-        <label className="label-with-ai">
-          <span>Tags (comma-separated)</span>
-          <button type="button" className="btn-ai-inline"
-                  disabled={aiBusy.tags || !form.title.trim()}
-                  onClick={() => runAi('tags', aiSuggestTags)}
-                  title="Let AI suggest tags">
-            {aiBusy.tags ? '…' : '✨ Suggest tags'}
-          </button>
-        </label>
-        <input
-          value={form.tags}
-          onChange={e => set('tags', e.target.value)}
-          placeholder="bug, feature, urgent"
-        />
-        {allTags.length > 0 && (
-          <div style={{ display:'flex', flexWrap:'wrap', gap:4, marginTop:4 }}>
-            {allTags.filter(t => !form.tags.split(',').map(x=>x.trim()).includes(t)).slice(0,12).map(t => (
-              <span
-                key={t}
-                className="tag-chip"
-                style={{ cursor:'pointer' }}
-                title="Click to add"
-                onClick={() => set('tags', form.tags ? form.tags + ', ' + t : t)}
-              >
-                {t}
-              </span>
-            ))}
-          </div>
-        )}
-      </div>
+      )}
 
       <div className="form-row">
         <div className="form-group">
           <label>Department</label>
-          <input value={form.department} onChange={e => set('department', e.target.value)} placeholder="e.g. Engineering" />
+          <select value={form.department} onChange={e => set('department', e.target.value)}>
+            <option value="">— Select department —</option>
+            {DEPARTMENTS.map(d => <option key={d} value={d}>{d.charAt(0).toUpperCase() + d.slice(1)}</option>)}
+          </select>
         </div>
         <div className="form-group">
           <label>Owner Name</label>
@@ -329,90 +371,100 @@ export default function TaskForm({ taskId, defaultStatus, defaultDueDate, onClos
         </div>
       </div>
 
-      <div className="form-row">
-        <div className="form-group">
-          <label>Change Requested From (department)</label>
-          <input value={form.changeFromDepartment} onChange={e => set('changeFromDepartment', e.target.value)} placeholder="e.g. Marketing" />
-        </div>
-        <div className="form-group">
-          <label>Change Request Date</label>
-          <input type="date" value={form.changeRequestDate} onChange={e => set('changeRequestDate', e.target.value)} />
-        </div>
-      </div>
+      {/* "Change Requested From" / "Change Request Date" removed —
+          Department field above already captures the requesting department. */}
 
-      <div className="form-row">
+      {isAdmin ? (
+        <div className="form-row">
+          <div className="form-group">
+            <label>Product</label>
+            <select value={form.product} onChange={e => set('product', e.target.value)}>
+              <option value="">— Select product —</option>
+              {PRODUCTS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+            </select>
+          </div>
+          <div className="form-group">
+            <label>Panel</label>
+            <select value={form.panel} onChange={e => set('panel', e.target.value)}>
+              <option value="">— Select panel —</option>
+              {PANELS.map(p => <option key={p} value={p}>{p}</option>)}
+            </select>
+          </div>
+        </div>
+      ) : (
         <div className="form-group">
           <label>Product</label>
           <select value={form.product} onChange={e => set('product', e.target.value)}>
             <option value="">— Select product —</option>
-            {PRODUCTS.map(p => <option key={p} value={p}>{p}</option>)}
+            {PRODUCTS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
           </select>
         </div>
+      )}
+
+      {!compact && (
+        <div className="form-row">
+          <div className="form-group">
+            <label>Managed by</label>
+            <input value={MANAGER} readOnly disabled style={{ background:'var(--bg)', cursor:'not-allowed' }} />
+          </div>
+          <div className="form-group">
+            <label>Actual Hours</label>
+            <input type="number" min="0" step="0.5" value={form.actualHours} onChange={e => set('actualHours', e.target.value)} placeholder="e.g. 6" />
+          </div>
+        </div>
+      )}
+
+      {!compact && (
         <div className="form-group">
-          <label>Panel</label>
-          <select value={form.panel} onChange={e => set('panel', e.target.value)}>
-            <option value="">— Select panel —</option>
-            {PANELS.map(p => <option key={p} value={p}>{p}</option>)}
-          </select>
+          <label>Developers</label>
+          <MultiSelectDropdown
+            users={users}
+            selectedIds={form.developers}
+            onToggle={toggleDeveloper}
+            onClear={() => set('developers', [])}
+            placeholder="Select developers…"
+            emptyText="No developers selected"
+          />
         </div>
-      </div>
+      )}
 
-      <div className="form-row">
+      {!compact && (
         <div className="form-group">
-          <label>Managed by</label>
-          <input value={MANAGER} readOnly disabled style={{ background:'var(--bg)', cursor:'not-allowed' }} />
+          <label>Assign To</label>
+          <div className="assignee-grid">
+            {users.map(u => {
+              const uid = u._id || u.id;
+              return (
+                <div
+                  key={uid}
+                  className={`assignee-tile${form.assignedTo.includes(uid) ? ' selected' : ''}`}
+                  onClick={() => toggleUser(uid)}
+                >
+                  <div className="assignee-avatar">{(u.name||'U').slice(0,1).toUpperCase()}</div>
+                  <div className="assignee-name">{u.name}</div>
+                  <div className="assignee-role">{u.role}</div>
+                </div>
+              );
+            })}
+          </div>
         </div>
-        <div className="form-group">
-          <label>Actual Hours</label>
-          <input type="number" min="0" step="0.5" value={form.actualHours} onChange={e => set('actualHours', e.target.value)} placeholder="e.g. 6" />
-        </div>
-      </div>
+      )}
 
-      <div className="form-group">
-        <label>Developers</label>
-        <MultiSelectDropdown
-          users={users}
-          selectedIds={form.developers}
-          onToggle={toggleDeveloper}
-          onClear={() => set('developers', [])}
-          placeholder="Select developers…"
-          emptyText="No developers selected"
-        />
-      </div>
-
-      <div className="form-group">
-        <label>Assign To</label>
-        <div className="assignee-grid">
-          {users.map(u => {
-            const uid = u._id || u.id;
-            return (
-              <div
-                key={uid}
-                className={`assignee-tile${form.assignedTo.includes(uid) ? ' selected' : ''}`}
-                onClick={() => toggleUser(uid)}
-              >
-                <div className="assignee-avatar">{(u.name||'U').slice(0,1).toUpperCase()}</div>
-                <div className="assignee-name">{u.name}</div>
-                <div className="assignee-role">{u.role}</div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Email notifications toggle */}
-      <label style={{ display:'flex', alignItems:'center', gap:10, cursor:'pointer', fontSize:13, padding:'8px 0', borderTop:'1px solid var(--border)' }}>
-        <input
-          type="checkbox"
-          checked={form.emailNotificationsEnabled}
-          onChange={e => set('emailNotificationsEnabled', e.target.checked)}
-          style={{ width:16, height:16, accentColor:'#3b82f6', flexShrink:0 }}
-        />
-        <span>
-          <strong>Email notifications</strong>
-          <span style={{ color:'var(--muted)', marginLeft:6 }}>— notify assignees on status changes and due dates</span>
-        </span>
-      </label>
+      {/* Email notifications toggle (full form only) */}
+      {!compact && (
+        <label style={{ display:'flex', alignItems:'center', gap:10, cursor:'pointer', fontSize:13, padding:'8px 0', borderTop:'1px solid var(--border)' }}>
+          <input
+            type="checkbox"
+            checked={form.emailNotificationsEnabled}
+            onChange={e => set('emailNotificationsEnabled', e.target.checked)}
+            style={{ width:16, height:16, accentColor:'#3b82f6', flexShrink:0 }}
+          />
+          <span>
+            <strong>Email notifications</strong>
+            <span style={{ color:'var(--muted)', marginLeft:6 }}>— notify assignees on status changes and due dates</span>
+          </span>
+        </label>
+      )}
 
       <div className="form-actions">
         <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>

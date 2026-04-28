@@ -11,7 +11,7 @@ const Vendor = require('../src/models/Vendor');
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@mahattaart.com';
 const ADMIN_PASS  = process.env.ADMIN_PASS  || 'Admin@1234';
-const ADMIN_NAME  = process.env.ADMIN_NAME  || 'Admin';
+const ADMIN_NAME  = process.env.ADMIN_NAME  || 'Kunal';
 
 // Vikas vendor seed data
 const VIKAS_VENDOR = {
@@ -53,7 +53,13 @@ async function seed() {
   // ── Admin user ──
   const existingAdmin = await User.findOne({ email: ADMIN_EMAIL });
   if (existingAdmin) {
-    console.log(`Admin already exists: ${ADMIN_EMAIL}`);
+    if (existingAdmin.name !== ADMIN_NAME) {
+      // updateOne avoids the password-required validation that .save() runs.
+      await User.updateOne({ _id: existingAdmin._id }, { $set: { name: ADMIN_NAME } });
+      console.log(`Admin name updated: ${existingAdmin.name} → ${ADMIN_NAME} (${ADMIN_EMAIL})`);
+    } else {
+      console.log(`Admin already exists: ${ADMIN_EMAIL}`);
+    }
   } else {
     await User.create({ name: ADMIN_NAME, email: ADMIN_EMAIL, password: ADMIN_PASS, role: 'admin' });
     console.log(`Admin created: ${ADMIN_EMAIL} / ${ADMIN_PASS}`);

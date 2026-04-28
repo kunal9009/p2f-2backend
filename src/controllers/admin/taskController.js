@@ -90,6 +90,11 @@ exports.kanban = async (req, res) => {
     const matchFilter = {};
     if (project) matchFilter.project = { $regex: project, $options: 'i' };
 
+    // Developer / product users only see their own assigned tasks on the board.
+    if (req.user.role === 'developer' || req.user.role === 'product') {
+      matchFilter['assignedTo.userId'] = req.user.id;
+    }
+
     const allTasks = await Task.find(matchFilter).sort({ priority: -1, dueDate: 1 });
 
     // Priority sort order for display
@@ -123,6 +128,13 @@ exports.dashboard = async (req, res) => {
     const baseFilter = {};
     if (req.query.dueAfter)  baseFilter.dueDate = { ...baseFilter.dueDate, $gte: new Date(req.query.dueAfter) };
     if (req.query.dueBefore) baseFilter.dueDate = { ...baseFilter.dueDate, $lte: new Date(req.query.dueBefore) };
+
+    // Developer / product users: scope every aggregate + count to their
+    // assigned tasks only — they see their own dashboard, not the global one.
+    if (req.user.role === 'developer' || req.user.role === 'product') {
+      baseFilter['assignedTo.userId'] = req.user.id;
+    }
+
     const matchStage = Object.keys(baseFilter).length ? [{ $match: baseFilter }] : [];
 
     const [

@@ -9,10 +9,16 @@ import TaskDetail from '../components/TaskDetail';
 import ConfirmDialog from '../components/ConfirmDialog';
 import EmptyState from '../components/EmptyState';
 
-const STATUSES   = ['todo','in_progress','testing','on_hold','completed','cancelled'];
+const STATUSES   = ['not_started','todo','under_discussion','in_progress','testing','on_hold','completed','cancelled'];
 const PRIORITIES = ['critical','high','medium','low'];
 const PCOLOR = { critical:'#ef4444', high:'#f97316', medium:'#3b82f6', low:'#10b981' };
-const SCOLOR = { todo:'#64748b', in_progress:'#f59e0b', testing:'#8b5cf6', on_hold:'#94a3b8', completed:'#10b981', cancelled:'#ef4444' };
+const SCOLOR = {
+  not_started:'#94a3b8', todo:'#64748b', under_discussion:'#0ea5e9',
+  in_progress:'#f59e0b', testing:'#8b5cf6', on_hold:'#94a3b8',
+  completed:'#10b981', cancelled:'#ef4444',
+};
+const PRODUCT_LABELS = { wallpaper:'Wallpaper', wallart:'Wallart', p2f:'P2F', 'entire-website':'Entire Website' };
+const TASK_ASSIGNED_BY = 'Kunal';
 const LIMIT = 20;
 
 /* Sort helper */
@@ -56,6 +62,8 @@ export default function Tasks() {
     assignedTo: searchParams.get('assignedTo') || '',
     overdue:    searchParams.get('overdue')    === 'true',
     dueToday:   searchParams.get('dueToday')   === 'true',
+    dueAfter:   searchParams.get('dueAfter')   || '',
+    dueBefore:  searchParams.get('dueBefore')  || '',
   });
 
   const buildQS = useCallback((f, p, s) => {
@@ -68,6 +76,8 @@ export default function Tasks() {
     if (f.assignedTo) q.set('assignedTo', f.assignedTo);
     if (f.overdue)    q.set('overdue',    'true');
     if (f.dueToday)   q.set('dueToday',   'true');
+    if (f.dueAfter)   q.set('dueAfter',   f.dueAfter);
+    if (f.dueBefore)  q.set('dueBefore',  f.dueBefore);
     q.set('page', p); q.set('limit', LIMIT); q.set('sort', s);
     return q.toString();
   }, []);
@@ -101,7 +111,7 @@ export default function Tasks() {
 
   function setFilter(field, value) { setFilters(f => ({ ...f, [field]: value })); setPage(1); }
   function clearFilters() {
-    setFilters({ search:'', status:'', priority:'', project:'', tag:'', assignedTo:'', overdue:false, dueToday:false });
+    setFilters({ search:'', status:'', priority:'', project:'', tag:'', assignedTo:'', overdue:false, dueToday:false, dueAfter:'', dueBefore:'' });
     setPage(1);
   }
 
@@ -261,6 +271,14 @@ export default function Tasks() {
           <input type="checkbox" checked={filters.dueToday} onChange={e => setFilter('dueToday', e.target.checked)} />
           Due today
         </label>
+        <label className="input-sm" style={{ display:'flex', alignItems:'center', gap:4, padding:'0 8px' }} title="Deadline on or after">
+          From
+          <input type="date" value={filters.dueAfter} onChange={e => setFilter('dueAfter', e.target.value)} style={{ border:'none', padding:0, fontSize:12 }} />
+        </label>
+        <label className="input-sm" style={{ display:'flex', alignItems:'center', gap:4, padding:'0 8px' }} title="Deadline on or before">
+          To
+          <input type="date" value={filters.dueBefore} onChange={e => setFilter('dueBefore', e.target.value)} style={{ border:'none', padding:0, fontSize:12 }} />
+        </label>
         {hasFilters && <button className="btn btn-secondary btn-sm" onClick={clearFilters}>✕ Clear</button>}
       </div>
 
@@ -304,10 +322,12 @@ export default function Tasks() {
                 <SortTh col="taskId">ID</SortTh>
                 <SortTh col="title">Title</SortTh>
                 <th>Project</th>
+                <th>Product</th>
                 <SortTh col="priority">Priority</SortTh>
                 <SortTh col="status">Status</SortTh>
-                <SortTh col="dueDate">Due</SortTh>
-                <th>Assignees</th>
+                <SortTh col="dueDate">Deadline Date</SortTh>
+                <th>Task Assigned To</th>
+                <th>Task Assigned By</th>
                 <th style={{ width:32 }}></th>
               </tr>
             </thead>
@@ -329,6 +349,9 @@ export default function Tasks() {
                       )}
                     </td>
                     <td style={{ color:'var(--muted)', fontSize:13, whiteSpace:'nowrap' }}>{t.project || '—'}</td>
+                    <td style={{ fontSize:12, whiteSpace:'nowrap', color:'var(--muted)' }}>
+                      {t.product ? (PRODUCT_LABELS[t.product] || t.product) : '—'}
+                    </td>
                     <td>
                       {canEdit ? (
                         <select
@@ -372,6 +395,9 @@ export default function Tasks() {
                         ))}
                         {(t.assignedTo||[]).length > 3 && <span style={{ fontSize:11,color:'var(--muted)' }}>+{t.assignedTo.length-3}</span>}
                       </div>
+                    </td>
+                    <td style={{ fontSize:12, whiteSpace:'nowrap', color:'var(--muted)' }}>
+                      {TASK_ASSIGNED_BY}
                     </td>
                     <td>
                       {canEdit && (

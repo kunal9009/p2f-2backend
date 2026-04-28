@@ -47,6 +47,20 @@ exports.list = async (req, res) => {
 
     const filter = buildFilter(req.query);
 
+    // Per-user panel scope: a non-admin user with the tasks-frontend or
+    // tasks-backend permission only sees tasks matching that panel. If both
+    // are granted (or permissionsRestricted is off / they're admin), no
+    // panel filter is applied.
+    if (req.user.role !== 'admin' && req.user.permissionsRestricted) {
+      const perms = req.user.permissions || [];
+      const hasFrontend = perms.includes('tasks-frontend');
+      const hasBackend  = perms.includes('tasks-backend');
+      if (hasFrontend && !hasBackend)      filter.panel = 'frontend';
+      else if (hasBackend && !hasFrontend) filter.panel = 'backend';
+      // both → no filter; neither → still no filter (the 'tasks' permission
+      // already handled visibility of the page itself).
+    }
+
     const [tasks, total] = await Promise.all([
       Task.find(filter).sort(sort).skip(skip).limit(limit),
       Task.countDocuments(filter),
@@ -828,5 +842,36 @@ exports.schedulerStatus = async (req, res) => {
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// ─── PATCH /api/admin/tasks/:id/rollover-reason ───
+// Set the reason on the most recent deadline rollover entry. Admin-only.
+exports.setRolloverReason = async (req, res) => {
+  try {
+    const { reason } = req.body;
+    if (!reason || !String(reason).trim()) {
+      return res.status(400).json({ success: false, message: 'reason is required' });
+    }
+
+    const task = await Task.findById(req.params.id);
+    if (!task) return res.status(404).json({ success: false, message: 'Task not found' });
+
+    const last = task.deadlineRollovers && task.deadlineRollovers.length
+      ? task.deadlineRollovers[task.deadlineRollovers.length - 1]
+      : null;
+    if (!last) {
+      return res.status(400).json({ success: false, message: 'No rollovers on this task' });
+    }
+
+    last.reason       = String(reason).trim();
+    last.reasonById   = req.user.id;
+    last.reasonByName = req.user.name;
+    last.reasonAt     = new Date();
+    await task.save();
+
+    res.json({ success: true, data: task });
+  } catch (err) {
+    res.status(400).json({ success: false, message: err.message });
   }
 };

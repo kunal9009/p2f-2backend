@@ -30,6 +30,9 @@ router.delete('/:id', adminOnly, taskController.remove);                 // DELE
 // ─── STATUS MANAGEMENT ───
 router.patch('/:id/status', adminOnly, taskController.updateStatus); // PATCH /api/admin/tasks/:id/status
 
+// ─── DEADLINE ROLLOVER REASON ───
+router.patch('/:id/rollover-reason', adminOnly, taskController.setRolloverReason); // PATCH /api/admin/tasks/:id/rollover-reason
+
 // ─── COMMENTS ───
 router.post('/:id/comments',               adminOnly, taskController.addComment);    // POST   /api/admin/tasks/:id/comments
 router.delete('/:id/comments/:commentId',  adminOnly, taskController.deleteComment); // DELETE /api/admin/tasks/:id/comments/:commentId

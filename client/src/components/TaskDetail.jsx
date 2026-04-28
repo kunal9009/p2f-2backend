@@ -5,9 +5,13 @@ import { useToast } from '../contexts/ToastContext';
 import TaskForm from './TaskForm';
 import ConfirmDialog from './ConfirmDialog';
 
-const STATUSES   = ['todo','in_progress','testing','on_hold','completed','cancelled'];
+const STATUSES   = ['not_started','todo','under_discussion','in_progress','testing','on_hold','completed','cancelled'];
 const PCOLOR = { critical:'#ef4444', high:'#f97316', medium:'#3b82f6', low:'#10b981' };
-const SCOLOR = { todo:'#64748b', in_progress:'#f59e0b', testing:'#8b5cf6', on_hold:'#94a3b8', completed:'#10b981', cancelled:'#ef4444' };
+const SCOLOR = {
+  not_started:'#94a3b8', todo:'#64748b', under_discussion:'#0ea5e9',
+  in_progress:'#f59e0b', testing:'#8b5cf6', on_hold:'#94a3b8',
+  completed:'#10b981', cancelled:'#ef4444',
+};
 
 export default function TaskDetail({ taskId, onClose, onUpdated }) {
   const { user, isAdmin } = useAuth();
@@ -185,6 +189,21 @@ export default function TaskDetail({ taskId, onClose, onUpdated }) {
             </span>
           )}
         </div>
+
+        {/* Pending rollover reason banner (admin only). Shows when the most
+            recent auto-rollover hasn't been explained yet. */}
+        {isAdmin && (() => {
+          const rolls = task.deadlineRollovers || [];
+          const last = rolls.length ? rolls[rolls.length - 1] : null;
+          if (!last || (last.reason && last.reason.trim())) return null;
+          return (
+            <RolloverReasonBox
+              taskId={task._id}
+              rollover={last}
+              onSaved={load}
+            />
+          );
+        })()}
       </div>
 
       {/* Tabs */}
@@ -361,6 +380,58 @@ function InfoField({ label, value }) {
     <div>
       <div style={{ fontSize:11, fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:.5, marginBottom:3 }}>{label}</div>
       <div style={{ fontSize:13, fontWeight:500 }}>{value}</div>
+    </div>
+  );
+}
+
+// ─── Rollover reason input ───
+function RolloverReasonBox({ taskId, rollover, onSaved }) {
+  const [reason, setReason] = useState('');
+  const [saving, setSaving] = useState(false);
+  const fmt = d => new Date(d).toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' });
+
+  async function save() {
+    const r = reason.trim();
+    if (!r) return;
+    setSaving(true);
+    const res = await api('/api/admin/tasks/' + taskId + '/rollover-reason', 'PATCH', { reason: r });
+    setSaving(false);
+    if (res.success) onSaved && onSaved();
+  }
+
+  return (
+    <div style={{
+      marginTop: 12,
+      padding: '10px 14px',
+      background: '#fef3c7',
+      border: '1px solid #fde68a',
+      borderRadius: 8,
+      fontSize: 12,
+    }}>
+      <div style={{ fontWeight:600, color:'#92400e', marginBottom:4 }}>
+        ⚠️ Deadline rolled over from {fmt(rollover.from)} → {fmt(rollover.to)}
+      </div>
+      <div style={{ color:'#92400e', marginBottom:6 }}>
+        Add a reason so the team knows why this deadline slipped.
+      </div>
+      <div style={{ display:'flex', gap:6 }}>
+        <textarea
+          value={reason}
+          onChange={e => setReason(e.target.value)}
+          rows={2}
+          placeholder="Why did the deadline slip?"
+          style={{ flex:1, borderRadius:6, border:'1px solid #fde68a', padding:'6px 10px', fontSize:12, resize:'vertical', fontFamily:'inherit', background:'#fff' }}
+        />
+        <button
+          type="button"
+          className="btn btn-primary btn-sm"
+          disabled={saving || !reason.trim()}
+          onClick={save}
+          style={{ alignSelf:'flex-end' }}
+        >
+          {saving ? '…' : 'Save reason'}
+        </button>
+      </div>
     </div>
   );
 }

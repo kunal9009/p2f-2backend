@@ -130,10 +130,43 @@ const taskSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 // ─── AUTO-GENERATE taskId ───
+// Use the atomic Counter model so concurrent saves don't collide. The
+// previous implementation (`countDocuments() + 1`) lagged behind any time
+// a task was deleted, which produced E11000 duplicate-key errors. If the
+// counter is behind the highest existing TKT-NNNN (e.g. fresh DB after
+// some manual inserts), we fast-forward it.
 taskSchema.pre('save', async function (next) {
   if (this.isNew && !this.taskId) {
-    const count = await mongoose.model('Task').countDocuments();
-    this.taskId = `TKT-${String(count + 1).padStart(4, '0')}`;
+    const Counter = mongoose.model('Counter');
+    const Self = this.constructor;
+    const pad = (n) => `TKT-${String(n).padStart(4, '0')}`;
+
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const seq = await Counter.nextSeq('task');
+      const candidate = pad(seq);
+      // eslint-disable-next-line no-await-in-loop
+      const taken = await Self.exists({ taskId: candidate });
+      if (!taken) {
+        this.taskId = candidate;
+        break;
+      }
+      // Counter is lagging. Find the real max and fast-forward.
+      // eslint-disable-next-line no-await-in-loop
+      const last = await Self.findOne({ taskId: /^TKT-\d+$/ })
+        .sort({ taskId: -1 })
+        .select('taskId')
+        .lean();
+      const lastNum = last && last.taskId
+        ? parseInt(last.taskId.replace(/^TKT-/, ''), 10) || 0
+        : 0;
+      if (seq <= lastNum) {
+        // eslint-disable-next-line no-await-in-loop
+        await Counter.findByIdAndUpdate('task', { $set: { seq: lastNum } });
+      }
+    }
+    if (!this.taskId) {
+      return next(new Error('Could not allocate a unique taskId after 10 retries'));
+    }
   }
   if (this.isModified('status') && this.status === TASK_STATUS.COMPLETED && !this.completedAt) {
     this.completedAt = new Date();

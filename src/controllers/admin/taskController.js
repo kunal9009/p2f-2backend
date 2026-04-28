@@ -893,3 +893,64 @@ exports.setRolloverReason = async (req, res) => {
     res.status(400).json({ success: false, message: err.message });
   }
 };
+
+// ─── POST /api/admin/tasks/:id/attachments ───
+// Upload one or more files (images, PDFs) and attach them to a task.
+// Uses the existing multer 'upload.array' middleware on the route. The
+// allowlist (jpeg/png/gif/webp/pdf, 10 MB) is enforced there.
+exports.addAttachments = async (req, res) => {
+  try {
+    const task = await Task.findById(req.params.id);
+    if (!task) return res.status(404).json({ success: false, message: 'Task not found' });
+
+    const files = Array.isArray(req.files) ? req.files : [];
+    if (!files.length) {
+      return res.status(400).json({ success: false, message: 'No files uploaded' });
+    }
+
+    for (const f of files) {
+      task.attachments.push({
+        filename:       f.filename,
+        originalName:   f.originalname,
+        mimetype:       f.mimetype,
+        size:           f.size,
+        url:            '/uploads/' + f.filename,
+        uploadedById:   req.user.id,
+        uploadedByName: req.user.name,
+      });
+    }
+    await task.save();
+
+    res.status(201).json({ success: true, data: task });
+  } catch (err) {
+    res.status(400).json({ success: false, message: err.message });
+  }
+};
+
+// ─── DELETE /api/admin/tasks/:id/attachments/:attId ───
+// Remove an attachment from the task. Admin-only. The on-disk file is
+// also unlinked (best effort).
+exports.removeAttachment = async (req, res) => {
+  try {
+    const task = await Task.findById(req.params.id);
+    if (!task) return res.status(404).json({ success: false, message: 'Task not found' });
+
+    const att = task.attachments.id(req.params.attId);
+    if (!att) return res.status(404).json({ success: false, message: 'Attachment not found' });
+
+    const filename = att.filename;
+    att.deleteOne();
+    await task.save();
+
+    if (filename) {
+      const fs   = require('fs');
+      const path = require('path');
+      const dir  = process.env.UPLOAD_DIR || 'uploads';
+      fs.unlink(path.join(dir, filename), () => { /* ignore */ });
+    }
+
+    res.json({ success: true, data: task });
+  } catch (err) {
+    res.status(400).json({ success: false, message: err.message });
+  }
+};

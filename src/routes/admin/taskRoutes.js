@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const taskController = require('../../controllers/admin/taskController');
 const { protect, adminOrWarehouse, adminOnly, requireSection } = require('../../middleware/auth');
+const upload = require('../../middleware/upload');
 
 // All task routes require auth (any internal staff: admin/warehouse/dept roles)
 router.use(protect, adminOrWarehouse);
@@ -32,6 +33,18 @@ router.patch('/:id/status', adminOnly, taskController.updateStatus); // PATCH /a
 
 // ─── DEADLINE ROLLOVER REASON ───
 router.patch('/:id/rollover-reason', adminOnly, taskController.setRolloverReason); // PATCH /api/admin/tasks/:id/rollover-reason
+
+// ─── ATTACHMENTS ───
+// Upload allowed for anyone with the add-task permission (so a department
+// user can attach reference files to the task they're submitting). Delete
+// is admin-only.
+router.post(
+  '/:id/attachments',
+  requireSection('add-task'),
+  upload.array('files', 5),
+  taskController.addAttachments,
+);
+router.delete('/:id/attachments/:attId', adminOnly, taskController.removeAttachment);
 
 // ─── COMMENTS ───
 router.post('/:id/comments',               adminOnly, taskController.addComment);    // POST   /api/admin/tasks/:id/comments

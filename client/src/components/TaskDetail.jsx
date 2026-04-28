@@ -255,6 +255,49 @@ export default function TaskDetail({ taskId, onClose, onUpdated, onEdit }) {
               {task.completedAt && <InfoField label="Completed" value={new Date(task.completedAt).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})} />}
             </div>
 
+            {(task.attachments || []).length > 0 && (
+              <div style={{ marginBottom:20 }}>
+                <div style={{ fontSize:12, fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:.5, marginBottom:8 }}>
+                  Attachments ({task.attachments.length})
+                </div>
+                <div style={{ display:'flex', flexWrap:'wrap', gap:10 }}>
+                  {task.attachments.map(a => {
+                    const isImage = (a.mimetype || '').startsWith('image/');
+                    return (
+                      <div key={a._id} style={{ position:'relative', border:'1px solid var(--border)', borderRadius:8, padding:8, minWidth:140, maxWidth:200 }}>
+                        {isImage ? (
+                          <a href={a.url} target="_blank" rel="noreferrer">
+                            <img src={a.url} alt={a.originalName} style={{ width:'100%', height:90, objectFit:'cover', borderRadius:4 }} />
+                          </a>
+                        ) : (
+                          <a href={a.url} target="_blank" rel="noreferrer" style={{ display:'flex', alignItems:'center', gap:8, fontSize:13, textDecoration:'none', color:'var(--text)' }}>
+                            <span style={{ fontSize:24 }}>📎</span>
+                            <span style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{a.originalName}</span>
+                          </a>
+                        )}
+                        <div style={{ fontSize:11, color:'var(--muted)', marginTop:4 }}>
+                          {a.originalName && isImage ? a.originalName + ' · ' : ''}
+                          {a.size ? Math.round(a.size / 1024) + ' KB' : ''}
+                        </div>
+                        {isAdmin && (
+                          <button
+                            type="button"
+                            title="Remove attachment"
+                            onClick={async () => {
+                              const res = await api(`/api/admin/tasks/${taskId}/attachments/${a._id}`, 'DELETE');
+                              if (res.success) load();
+                              else toast(res.message || 'Delete failed', 'error');
+                            }}
+                            style={{ position:'absolute', top:4, right:4, background:'#fee2e2', color:'#991b1b', border:'none', borderRadius:4, width:22, height:22, cursor:'pointer', fontSize:12 }}
+                          >✕</button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {(task.tags||[]).length > 0 && (
               <div style={{ marginBottom:16 }}>
                 <div style={{ fontSize:12, fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:.5, marginBottom:6 }}>Tags</div>

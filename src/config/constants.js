@@ -7,6 +7,8 @@ const ROLES = {
   MARKETING: 'marketing',
   CONTENT:   'content',
   SALES:     'sales',
+  DEVELOPER: 'developer',
+  PRODUCT:   'product',
 };
 
 // ─── ORDER STATUS PIPELINE ───

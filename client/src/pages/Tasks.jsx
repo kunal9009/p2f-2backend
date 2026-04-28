@@ -52,6 +52,7 @@ export default function Tasks() {
   const [confirm,  setConfirm]  = useState(null);
   const [bulkAssignOpen, setBulkAssignOpen] = useState(false);
   const [bulkAssignUser, setBulkAssignUser] = useState('');
+  const [editingTaskId,  setEditingTaskId]  = useState(null);
 
   const [filters, setFilters] = useState({
     search:     searchParams.get('search')     || '',
@@ -322,12 +323,13 @@ export default function Tasks() {
                 <SortTh col="taskId">ID</SortTh>
                 <SortTh col="title">Title</SortTh>
                 <th>Project</th>
+                <th>Department</th>
                 <th>Product</th>
                 <SortTh col="priority">Priority</SortTh>
                 <SortTh col="status">Status</SortTh>
                 <SortTh col="dueDate">Deadline Date</SortTh>
-                <th>Task Assigned To</th>
                 <th>Task Assigned By</th>
+                <th>Task Assigned To</th>
                 <th style={{ width:32 }}></th>
               </tr>
             </thead>
@@ -349,6 +351,9 @@ export default function Tasks() {
                       )}
                     </td>
                     <td style={{ color:'var(--muted)', fontSize:13, whiteSpace:'nowrap' }}>{t.project || '—'}</td>
+                    <td style={{ fontSize:12, whiteSpace:'nowrap', color:'var(--muted)', textTransform:'capitalize' }}>
+                      {t.department || '—'}
+                    </td>
                     <td style={{ fontSize:12, whiteSpace:'nowrap', color:'var(--muted)' }}>
                       {t.product ? (PRODUCT_LABELS[t.product] || t.product) : '—'}
                     </td>
@@ -386,6 +391,9 @@ export default function Tasks() {
                       {t.dueDate ? new Date(t.dueDate).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'2-digit'}) : '—'}
                       {isOverdue && <span style={{ marginLeft:4 }}>⚠️</span>}
                     </td>
+                    <td style={{ fontSize:12, whiteSpace:'nowrap', color:'var(--muted)' }}>
+                      {TASK_ASSIGNED_BY}
+                    </td>
                     <td>
                       <div style={{ display:'flex', gap:2 }}>
                         {(t.assignedTo||[]).slice(0,3).map(a => (
@@ -395,9 +403,6 @@ export default function Tasks() {
                         ))}
                         {(t.assignedTo||[]).length > 3 && <span style={{ fontSize:11,color:'var(--muted)' }}>+{t.assignedTo.length-3}</span>}
                       </div>
-                    </td>
-                    <td style={{ fontSize:12, whiteSpace:'nowrap', color:'var(--muted)' }}>
-                      {TASK_ASSIGNED_BY}
                     </td>
                     <td>
                       {canEdit && (
@@ -469,12 +474,28 @@ export default function Tasks() {
         </Modal>
       )}
 
+      {/* Edit task modal — same popup UX as New Task */}
+      {editingTaskId && (
+        <Modal title="Modify Task" onClose={() => setEditingTaskId(null)} wide>
+          <TaskForm
+            taskId={editingTaskId}
+            onClose={() => setEditingTaskId(null)}
+            onSaved={() => { setEditingTaskId(null); load(); }}
+          />
+        </Modal>
+      )}
+
       {/* Task detail drawer */}
       {modal && modal !== 'new' && (
         <div className="drawer-overlay" onClick={e => { if (e.target === e.currentTarget) setModal(null); }}>
           <div className="drawer">
             <button className="drawer-close" onClick={() => setModal(null)}>✕</button>
-            <TaskDetail taskId={modal} onClose={() => setModal(null)} onUpdated={load} />
+            <TaskDetail
+              taskId={modal}
+              onClose={() => setModal(null)}
+              onUpdated={load}
+              onEdit={(id) => { setModal(null); setEditingTaskId(id); }}
+            />
           </div>
         </div>
       )}

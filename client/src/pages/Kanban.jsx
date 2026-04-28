@@ -21,6 +21,7 @@ export default function Kanban() {
   const { isAdmin } = useAuth();
   // Only admin can drag, quick-add, or open the new-task modal. Others view.
   const canEdit = isAdmin;
+  const [editingTaskId, setEditingTaskId] = useState(null);
   const [columns,      setColumns]      = useState({});
   const [loading,      setLoading]      = useState(true);
   const [projectFilter,setProjectFilter]= useState('');
@@ -169,12 +170,28 @@ export default function Kanban() {
         </Modal>
       )}
 
+      {/* Edit task modal — same popup UX as New Task */}
+      {editingTaskId && (
+        <Modal title="Modify Task" onClose={() => setEditingTaskId(null)} wide>
+          <TaskForm
+            taskId={editingTaskId}
+            onClose={() => setEditingTaskId(null)}
+            onSaved={() => { setEditingTaskId(null); load(); }}
+          />
+        </Modal>
+      )}
+
       {/* Task detail drawer */}
       {modal?.type === 'edit' && (
         <div className="drawer-overlay" onClick={e => { if (e.target === e.currentTarget) setModal(null); }}>
           <div className="drawer">
             <button className="drawer-close" onClick={() => setModal(null)}>✕</button>
-            <TaskDetail taskId={modal.taskId} onClose={() => setModal(null)} onUpdated={load} />
+            <TaskDetail
+              taskId={modal.taskId}
+              onClose={() => setModal(null)}
+              onUpdated={load}
+              onEdit={(id) => { setModal(null); setEditingTaskId(id); }}
+            />
           </div>
         </div>
       )}

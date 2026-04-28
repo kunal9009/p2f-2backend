@@ -47,6 +47,12 @@ exports.list = async (req, res) => {
 
     const filter = buildFilter(req.query);
 
+    // Developer / product users only see tasks an admin has assigned to
+    // them — they don't get visibility into the rest of the board.
+    if (req.user.role === 'developer' || req.user.role === 'product') {
+      filter['assignedTo.userId'] = req.user.id;
+    }
+
     // Per-user panel scope: a non-admin user with the tasks-frontend or
     // tasks-backend permission only sees tasks matching that panel. If both
     // are granted (or permissionsRestricted is off / they're admin), no

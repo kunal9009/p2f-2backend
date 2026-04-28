@@ -14,17 +14,18 @@ const PRODUCTS    = [
 ];
 const PANELS      = ['backend','frontend'];
 const MANAGER     = 'Kunal';
+// Tasks can only be assigned to "doer" roles — developer + product.
+// Other internal-staff roles (marketing/content/sales/etc.) submit work
+// requests via the compact Add Task form, but aren't pickable here.
+const ASSIGNABLE_ROLES = ['developer','product'];
 
 export default function TaskForm({ taskId, defaultStatus, defaultDueDate, onClose, onSaved }) {
   const { toast }             = useToast();
   const { isAdmin }           = useAuth();
   // Form modes:
-  //  - non-admin (creating)                   → 6 fields
-  //  - admin editing an existing task         → compact (no AI, no project /
-  //    tags / developers / assignees / email toggle)
-  //  - admin creating new                     → full form
-  const editingExisting = Boolean(taskId);
-  const compact         = !isAdmin || (isAdmin && editingExisting);
+  //  - non-admin (creating)        → 6 fields (compact)
+  //  - admin (creating or editing) → full form, every field visible
+  const compact = !isAdmin;
   const [users,    setUsers]    = useState([]);
   const [projects, setProjects] = useState([]);
   const [allTags,  setAllTags]  = useState([]);
@@ -432,7 +433,7 @@ export default function TaskForm({ taskId, defaultStatus, defaultDueDate, onClos
         <div className="form-group">
           <label>Assign To</label>
           <div className="assignee-grid">
-            {users.map(u => {
+            {users.filter(u => ASSIGNABLE_ROLES.includes(u.role)).map(u => {
               const uid = u._id || u.id;
               return (
                 <div
@@ -446,6 +447,11 @@ export default function TaskForm({ taskId, defaultStatus, defaultDueDate, onClos
                 </div>
               );
             })}
+            {users.filter(u => ASSIGNABLE_ROLES.includes(u.role)).length === 0 && (
+              <div style={{ gridColumn:'1 / -1', padding:12, fontSize:12, color:'var(--muted)' }}>
+                No developer / product users yet. Add one in Users → + Add User.
+              </div>
+            )}
           </div>
         </div>
       )}

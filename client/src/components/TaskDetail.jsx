@@ -13,7 +13,10 @@ const SCOLOR = {
   completed:'#10b981', cancelled:'#ef4444',
 };
 
-export default function TaskDetail({ taskId, onClose, onUpdated }) {
+// onEdit (optional): when provided, ✏️ Edit calls onEdit(taskId) instead
+// of toggling an in-drawer edit form. Parents use this to open a Modal
+// popup with TaskForm — same UX as Add Task.
+export default function TaskDetail({ taskId, onClose, onUpdated, onEdit }) {
   const { user, isAdmin } = useAuth();
   const { toast } = useToast();
   const [task,      setTask]      = useState(null);
@@ -156,7 +159,7 @@ export default function TaskDetail({ taskId, onClose, onUpdated }) {
           <div style={{ display:'flex', gap:6, flexShrink:0, flexWrap:'wrap' }}>
             {isAdmin && (
               <>
-                <button className="btn btn-secondary btn-sm" onClick={() => setEditing(true)}>✏️ Edit</button>
+                <button className="btn btn-secondary btn-sm" onClick={() => onEdit ? onEdit(taskId) : setEditing(true)}>✏️ Edit</button>
                 <button className="btn btn-secondary btn-sm" onClick={duplicateTask} title="Duplicate task">⧉</button>
                 <button className="btn btn-sm" style={{ background:'#fee2e2', color:'#991b1b' }} onClick={deleteTask} title="Delete task">🗑</button>
               </>

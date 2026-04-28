@@ -68,6 +68,8 @@ const adminOrWarehouse = authorize(
   ROLES.MARKETING,
   ROLES.CONTENT,
   ROLES.SALES,
+  ROLES.DEVELOPER,
+  ROLES.PRODUCT,
 );
 const adminOrVendor = authorize(ROLES.ADMIN, ROLES.VENDOR);
 

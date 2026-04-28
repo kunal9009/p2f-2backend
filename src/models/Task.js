@@ -27,6 +27,17 @@ const TASK_PANELS      = ['backend', 'frontend'];
 // Used as the enum for `department` and `changeFromDepartment`.
 const TASK_DEPARTMENTS = ['marketing', 'content', 'sales', 'product', 'it'];
 
+// ─── ATTACHMENT SUB-SCHEMA ───
+const attachmentSchema = new mongoose.Schema({
+  filename:     { type: String, required: true },  // on-disk filename
+  originalName: { type: String },                  // user's filename
+  mimetype:     { type: String },
+  size:         { type: Number },
+  url:          { type: String, required: true },  // /uploads/<filename>
+  uploadedById:   { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  uploadedByName: { type: String },
+}, { timestamps: { createdAt: true, updatedAt: false } });
+
 // ─── COMMENT SUB-SCHEMA ───
 const commentSchema = new mongoose.Schema({
   text: { type: String, required: true, trim: true },
@@ -115,6 +126,10 @@ const taskSchema = new mongoose.Schema({
   panel:   { type: String, enum: TASK_PANELS,   lowercase: true, trim: true },
 
   tags: [{ type: String, trim: true }],
+
+  // Files / images attached to the task. Uploaded via
+  // POST /api/admin/tasks/:id/attachments (multipart/form-data).
+  attachments: [attachmentSchema],
 
   comments: [commentSchema],
   statusHistory: [statusHistorySchema],

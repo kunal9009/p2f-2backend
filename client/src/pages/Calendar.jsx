@@ -34,6 +34,7 @@ export default function Calendar() {
   const [loading,setLoading]= useState(true);
   const [drawer, setDrawer] = useState(null);  // taskId
   const [newModal,setNewModal] = useState(null); // date string or null='new'
+  const [editingTaskId, setEditingTaskId] = useState(null);
   const [selected, setSelected] = useState(null); // { date, tasks[] }
 
   const load = useCallback(async () => {
@@ -222,9 +223,25 @@ export default function Calendar() {
         <div className="drawer-overlay" onClick={e => { if (e.target===e.currentTarget) setDrawer(null); }}>
           <div className="drawer">
             <button className="drawer-close" onClick={() => setDrawer(null)}>✕</button>
-            <TaskDetail taskId={drawer} onClose={() => setDrawer(null)} onUpdated={load} />
+            <TaskDetail
+              taskId={drawer}
+              onClose={() => setDrawer(null)}
+              onUpdated={load}
+              onEdit={(id) => { setDrawer(null); setEditingTaskId(id); }}
+            />
           </div>
         </div>
+      )}
+
+      {/* Edit task modal — same popup UX as New Task */}
+      {editingTaskId && (
+        <Modal title="Modify Task" onClose={() => setEditingTaskId(null)} wide>
+          <TaskForm
+            taskId={editingTaskId}
+            onClose={() => setEditingTaskId(null)}
+            onSaved={() => { setEditingTaskId(null); load(); }}
+          />
+        </Modal>
       )}
 
       {/* New task modal — pre-fill due date if created from a day cell */}

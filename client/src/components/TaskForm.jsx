@@ -19,12 +19,9 @@ export default function TaskForm({ taskId, defaultStatus, defaultDueDate, onClos
   const { toast }             = useToast();
   const { isAdmin }           = useAuth();
   // Form modes:
-  //  - non-admin (creating)                   → 6 fields
-  //  - admin editing an existing task         → compact (no AI, no project /
-  //    tags / developers / assignees / email toggle)
-  //  - admin creating new                     → full form
-  const editingExisting = Boolean(taskId);
-  const compact         = !isAdmin || (isAdmin && editingExisting);
+  //  - non-admin (creating)        → 6 fields (compact)
+  //  - admin (creating or editing) → full form, every field visible
+  const compact = !isAdmin;
   const [users,    setUsers]    = useState([]);
   const [projects, setProjects] = useState([]);
   const [allTags,  setAllTags]  = useState([]);

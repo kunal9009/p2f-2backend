@@ -25,6 +25,16 @@ function buildFilter(query) {
   if (query.dueBefore) filter.dueDate = { ...filter.dueDate, $lte: new Date(query.dueBefore) };
   if (query.dueAfter)  filter.dueDate = { ...filter.dueDate, $gte: new Date(query.dueAfter) };
 
+  // Show only unassigned tasks (no entries in assignedTo).
+  if (query.unassigned === 'true') {
+    filter.$and = (filter.$and || []).concat([{
+      $or: [
+        { assignedTo: { $size: 0 } },
+        { assignedTo: { $exists: false } },
+      ],
+    }]);
+  }
+
   if (query.overdue === 'true') {
     filter.dueDate = { $lt: new Date() };
     filter.status = { $nin: [TASK_STATUS.COMPLETED, TASK_STATUS.CANCELLED] };
@@ -53,17 +63,44 @@ exports.list = async (req, res) => {
     // They surface only in admin's My Tasks → Pending Approval view.
     filter.pendingApproval = { $ne: true };
 
+    // "assignedToOrUnassigned=<userId>" — used by admin's My Tasks to
+    // include both tasks Kunal is on AND unassigned tasks (so he can see
+    // what still needs to be assigned).
+    if (req.query.assignedToOrUnassigned) {
+      filter.$and = (filter.$and || []).concat([{
+        $or: [
+          { 'assignedTo.userId': req.query.assignedToOrUnassigned },
+          { assignedTo: { $size: 0 } },
+          { assignedTo: { $exists: false } },
+        ],
+      }]);
+    }
+
     // Developer / product users only see tasks an admin has assigned to
     // them — they don't get visibility into the rest of the board.
     if (req.user.role === 'developer' || req.user.role === 'product') {
       filter['assignedTo.userId'] = req.user.id;
     }
 
+    // Non-admin "department" users (marketing/content/sales) browsing the
+    // unassigned (Pending Tasks) view are scoped to their own department.
+    if (req.query.unassigned === 'true' && req.user.role !== 'admin') {
+      const deptRoles = ['marketing', 'content', 'sales', 'product', 'it'];
+      if (deptRoles.includes(req.user.role)) {
+        filter.department = req.user.role;
+      }
+    }
+
     // All Tasks and My Tasks are mutually exclusive for admin: a task the
     // admin is already an assignee of belongs in My Tasks, not the team
     // list. We skip this exclusion when the admin explicitly filters by
-    // assignee (so the assignee dropdown still works).
-    if (req.user.role === 'admin' && !filter['assignedTo.userId']) {
+    // assignee (so the assignee dropdown still works) or asked for the
+    // assignedToOrUnassigned variant.
+    if (
+      req.user.role === 'admin' &&
+      !filter['assignedTo.userId'] &&
+      !req.query.assignedToOrUnassigned
+    ) {
       filter['assignedTo.userId'] = { $ne: req.user.id };
     }
 

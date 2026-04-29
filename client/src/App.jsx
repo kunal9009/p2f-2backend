@@ -11,6 +11,7 @@ import Kanban from './pages/Kanban';
 import Tasks from './pages/Tasks';
 import AddTask from './pages/AddTask';
 import MyTasks from './pages/MyTasks';
+import PendingTasks from './pages/PendingTasks';
 import Search from './pages/Search';
 import Team from './pages/Team';
 import Reports from './pages/Reports';
@@ -82,6 +83,7 @@ export default function App() {
                   <Route path="/tasks"     element={<SectionRoute section="tasks"><ErrorBoundary><Tasks /></ErrorBoundary></SectionRoute>} />
                   <Route path="/tasks/new" element={<SectionRoute section="add-task"><ErrorBoundary><AddTask /></ErrorBoundary></SectionRoute>} />
                   <Route path="/my-tasks"  element={<SectionRoute section="my-tasks"><ErrorBoundary><MyTasks /></ErrorBoundary></SectionRoute>} />
+                  <Route path="/pending-tasks" element={<SectionRoute section="pending-tasks"><ErrorBoundary><PendingTasks /></ErrorBoundary></SectionRoute>} />
                   <Route path="/search"    element={<SectionRoute section="search"><ErrorBoundary><Search /></ErrorBoundary></SectionRoute>} />
                   <Route path="/team"      element={<SectionRoute section="team"><ErrorBoundary><Team /></ErrorBoundary></SectionRoute>} />
                   <Route path="/reports"   element={<SectionRoute section="reports"><ErrorBoundary><Reports /></ErrorBoundary></SectionRoute>} />

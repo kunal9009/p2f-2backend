@@ -23,14 +23,14 @@ const PRODUCT_LABELS = { wallpaper:'Wallpaper', wallart:'Wallart', p2f:'P2F', 'e
 const TASK_ASSIGNED_BY = 'Kunal';
 const LIMIT = 20;
 
-export default function MyTasks() {
+export default function PendingTasks() {
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
-  const { isAdmin, user } = useAuth();
+  const { isAdmin } = useAuth();
   const canEdit = isAdmin;
 
   const [tasks,    setTasks]    = useState([]);
-  const [pending,  setPending]  = useState([]);
+  const [users,    setUsers]    = useState([]);
   const [projects, setProjects] = useState([]);
   const [allTags,  setAllTags]  = useState([]);
   const [total,    setTotal]    = useState(0);
@@ -40,6 +40,8 @@ export default function MyTasks() {
   const [selected, setSelected] = useState([]);
   const [modal,    setModal]    = useState(null);
   const [confirm,  setConfirm]  = useState(null);
+  const [bulkAssignOpen, setBulkAssignOpen] = useState(false);
+  const [bulkAssignUser, setBulkAssignUser] = useState('');
   const [editingTaskId, setEditingTaskId] = useState(null);
 
   const [filters, setFilters] = useState({
@@ -69,35 +71,29 @@ export default function MyTasks() {
     if (f.dueToday)   q.set('dueToday',   'true');
     if (f.dueAfter)   q.set('dueAfter',   f.dueAfter);
     if (f.dueBefore)  q.set('dueBefore',  f.dueBefore);
-    // Scope to tasks assigned to me. For admin we use the variant that
-    // also includes unassigned tasks — Kunal's queue should surface
-    // anything that still needs to be assigned. Non-admin users keep
-    // the strict "tasks assigned to me" filter.
-    if (user?.id) {
-      if (isAdmin) q.set('assignedToOrUnassigned', user.id);
-      else q.set('assignedTo', user.id);
-    }
+    // Always restrict to unassigned tasks. Backend additionally scopes
+    // dept-role users to their own department.
+    q.set('unassigned', 'true');
     q.set('page', p); q.set('limit', LIMIT); q.set('sort', s);
     return q.toString();
-  }, [user, isAdmin]);
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true); setSelected([]);
-    const reqs = [api('/api/admin/tasks?' + buildQS(filters, page, sort))];
-    if (isAdmin) reqs.push(api('/api/admin/tasks/pending-approval'));
-    const [listRes, pendRes] = await Promise.all(reqs);
-    if (listRes.success) { setTasks(listRes.data); setTotal(listRes.pagination?.total || 0); }
-    if (pendRes && pendRes.success) setPending(pendRes.data || []);
+    const res = await api('/api/admin/tasks?' + buildQS(filters, page, sort));
+    if (res.success) { setTasks(res.data); setTotal(res.pagination?.total || 0); }
     setLoading(false);
-  }, [filters, page, sort, buildQS, isAdmin]);
+  }, [filters, page, sort, buildQS]);
 
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
     Promise.all([
+      api('/api/admin/users'),
       api('/api/admin/tasks/projects'),
       api('/api/admin/tasks/tags'),
-    ]).then(([pRes, tRes]) => {
+    ]).then(([uRes, pRes, tRes]) => {
+      if (uRes.success) setUsers(uRes.data || uRes.users || []);
       if (pRes.success) setProjects(pRes.data || []);
       if (tRes.success) setAllTags(tRes.data || []);
     });
@@ -162,24 +158,17 @@ export default function MyTasks() {
     });
   }
 
-  async function bulkStatus(status) {
-    await Promise.all(selected.map(id => api('/api/admin/tasks/' + id + '/status', 'PATCH', { status })));
-    toast(`${selected.length} tasks → "${status.replace('_',' ')}"`, 'success');
-    setSelected([]); load();
-  }
-
-  // Remove the logged-in user from assignedTo on each selected task.
-  // Useful when admin was added by mistake — once admin is gone the
-  // task drops out of My Tasks and re-appears in All Tasks.
-  async function bulkRemoveMe() {
-    if (!user?.id) return;
-    const selectedTasks = tasks.filter(t => selected.includes(t._id));
-    await Promise.all(selectedTasks.map(t => {
-      const next = (t.assignedTo || []).filter(a => String(a.userId) !== String(user.id));
-      return api('/api/admin/tasks/' + t._id, 'PUT', { assignedTo: next });
-    }));
-    toast(`${selectedTasks.length} task${selectedTasks.length>1?'s':''} moved to All Tasks`, 'success');
-    setSelected([]); load();
+  async function doBulkAssign() {
+    if (!bulkAssignUser) return;
+    const u = users.find(x => (x._id||x.id) === bulkAssignUser);
+    if (!u) return;
+    await Promise.all(selected.map(id =>
+      api('/api/admin/tasks/' + id, 'PUT', {
+        assignedTo: [{ userId: u._id||u.id, name: u.name, email: u.email }],
+      })
+    ));
+    toast(`${selected.length} tasks assigned to ${u.name}`, 'success');
+    setBulkAssignOpen(false); setBulkAssignUser(''); setSelected([]); load();
   }
 
   function toggleSelect(id) {
@@ -214,55 +203,16 @@ export default function MyTasks() {
     <div>
       <div className="page-header">
         <div>
-          <h2>My Tasks</h2>
+          <h2>Pending Tasks</h2>
           <p className="text-muted">
-            {loading ? 'Loading…' : `${total} task${total!==1?'s':''} assigned${hasFilters?' (filtered)':''}`}
-            {isAdmin && pending.length > 0 && ` · ${pending.length} pending approval`}
+            {loading ? 'Loading…' : `${total} unassigned task${total!==1?'s':''}${hasFilters?' (filtered)':''}`}
           </p>
         </div>
         <div style={{ display:'flex', gap:8 }}>
           <button className="btn btn-secondary" onClick={load} title="Refresh">↻</button>
           <button className="btn btn-secondary" onClick={exportCSV}>⬇ CSV</button>
-          {canEdit && <button className="btn btn-primary" onClick={() => setModal('new')}>+ New Task</button>}
         </div>
       </div>
-
-      {/* Pending approval (admin only) */}
-      {isAdmin && pending.length > 0 && (
-        <div style={{ marginBottom:24 }}>
-          <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
-            <span style={{ width:10,height:10,borderRadius:'50%',background:'#f59e0b',display:'inline-block' }} />
-            <h3 style={{ margin:0, fontSize:15 }}>Pending Approval</h3>
-            <span style={{ fontSize:12,color:'var(--muted)' }}>{pending.length}</span>
-            <span style={{ fontSize:11, color:'#92400e', background:'#fef3c7', padding:'2px 8px', borderRadius:10, marginLeft:6 }}>
-              Submitted by department users — review &amp; assign to publish
-            </span>
-          </div>
-          {pending.map(t => (
-            <div key={t._id} className="card"
-              style={{ padding:'14px 16px', marginBottom:8, display:'flex', alignItems:'center', gap:12,
-                       borderLeft:'3px solid #f59e0b', background:'#fffbeb' }}
-            >
-              <div style={{ flex:1, minWidth:0 }}>
-                <div style={{ display:'flex', gap:8, alignItems:'center', marginBottom:4 }}>
-                  <span style={{ fontSize:11,color:'var(--muted)' }}>{t.taskId}</span>
-                  <span className="priority-badge" style={{ background:PCOLOR[t.priority]+'20', color:PCOLOR[t.priority] }}>{t.priority}</span>
-                  {t.department && (
-                    <span style={{ fontSize:11, color:'var(--muted)', textTransform:'capitalize' }}>· {t.department}</span>
-                  )}
-                </div>
-                <div style={{ fontWeight:500, cursor:'pointer' }} onClick={() => setEditingTaskId(t._id)}>{t.title}</div>
-                <div style={{ fontSize:12, color:'var(--muted)', marginTop:4 }}>
-                  Submitted by {t.createdByName || '—'} · {new Date(t.createdAt).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'2-digit'})}
-                </div>
-              </div>
-              <button className="btn btn-primary btn-sm" onClick={() => setEditingTaskId(t._id)}>
-                Review &amp; Assign
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
 
       {/* Filter bar */}
       <div className="filter-bar">
@@ -278,24 +228,27 @@ export default function MyTasks() {
           <option value="">All priorities</option>
           {PRIORITIES.map(p => <option key={p} value={p}>{p}</option>)}
         </select>
-        <select className="input-sm" value={filters.department} onChange={e => setFilter('department', e.target.value)} style={{ textTransform:'capitalize' }}>
-          <option value="">All departments</option>
-          {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
-        </select>
+        {/* Department filter only useful for admin (dept users are auto-scoped). */}
+        {isAdmin && (
+          <select className="input-sm" value={filters.department} onChange={e => setFilter('department', e.target.value)} style={{ textTransform:'capitalize' }}>
+            <option value="">All departments</option>
+            {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+          </select>
+        )}
         <select className="input-sm" value={filters.product} onChange={e => setFilter('product', e.target.value)}>
           <option value="">All products</option>
           {PRODUCTS.map(p => <option key={p} value={p}>{PRODUCT_LABELS[p] || p}</option>)}
         </select>
         <input className="input-sm" placeholder="Project…" value={filters.project}
           onChange={e => setFilter('project', e.target.value)} style={{ width:100 }}
-          list="my-task-project-list" />
-        <datalist id="my-task-project-list">
+          list="pending-task-project-list" />
+        <datalist id="pending-task-project-list">
           {projects.map(p => <option key={p} value={p} />)}
         </datalist>
         <input className="input-sm" placeholder="Tag…" value={filters.tag}
           onChange={e => setFilter('tag', e.target.value)} style={{ width:80 }}
-          list="my-task-tag-list" />
-        <datalist id="my-task-tag-list">
+          list="pending-task-tag-list" />
+        <datalist id="pending-task-tag-list">
           {allTags.map(t => <option key={t} value={t} />)}
         </datalist>
         <label className="input-sm" style={{ display:'flex', alignItems:'center', gap:4, padding:'0 8px', cursor:'pointer' }}>
@@ -317,18 +270,11 @@ export default function MyTasks() {
         {hasFilters && <button className="btn btn-secondary btn-sm" onClick={clearFilters}>✕ Clear</button>}
       </div>
 
-      {/* Bulk action bar */}
+      {/* Bulk action bar — admin only */}
       {canEdit && selected.length > 0 && (
         <div className="bulk-bar">
           <span style={{ fontWeight:600 }}>{selected.length} selected</span>
-          <span style={{ color:'var(--muted)', fontSize:12 }}>Status →</span>
-          {STATUSES.map(s => (
-            <button key={s} className="btn btn-secondary btn-sm" onClick={() => bulkStatus(s)}>
-              {s.replace('_',' ')}
-            </button>
-          ))}
-          <span style={{ color:'var(--muted)', fontSize:12 }}>|</span>
-          <button className="btn btn-secondary btn-sm" onClick={bulkRemoveMe} title="Unassign me — moves task back to All Tasks">→ All Tasks</button>
+          <button className="btn btn-primary btn-sm" onClick={() => setBulkAssignOpen(true)}>👤 Assign</button>
           <button className="btn btn-sm" style={{ background:'#ef4444', color:'#fff' }} onClick={bulkDelete}>🗑 Delete</button>
           <button className="btn btn-secondary btn-sm" onClick={() => setSelected([])}>✕</button>
         </div>
@@ -341,8 +287,8 @@ export default function MyTasks() {
         ) : tasks.length === 0 ? (
           <EmptyState
             icon={hasFilters ? '🔍' : '🎉'}
-            title={hasFilters ? 'No tasks match your filters' : "You're all caught up!"}
-            message={hasFilters ? 'Try adjusting or clearing your filters.' : 'No tasks are currently assigned to you.'}
+            title={hasFilters ? 'No tasks match your filters' : 'No pending tasks'}
+            message={hasFilters ? 'Try adjusting or clearing your filters.' : 'Every task has an assignee right now.'}
           />
         ) : (
           <table className="data-table">
@@ -363,7 +309,6 @@ export default function MyTasks() {
                 <SortTh col="dueDate">Deadline Date</SortTh>
                 <SortTh col="createdAt">Created Date</SortTh>
                 <th>Task Assigned By</th>
-                <th>Task Assigned To</th>
                 <th style={{ width:32 }}></th>
               </tr>
             </thead>
@@ -431,22 +376,6 @@ export default function MyTasks() {
                     <td style={{ fontSize:12, whiteSpace:'nowrap', color:'var(--muted)' }}>
                       {TASK_ASSIGNED_BY}
                     </td>
-                    <td style={{ fontSize:12 }}>
-                      {(t.assignedTo||[]).length === 0 ? (
-                        <span style={{ color:'var(--muted)' }}>—</span>
-                      ) : (
-                        <div style={{ display:'flex', flexDirection:'column', gap:3 }}>
-                          {t.assignedTo.map(a => (
-                            <div key={a.userId} style={{ display:'flex', alignItems:'center', gap:6 }}>
-                              <div className="user-avatar" style={{ width:20,height:20,fontSize:10,flexShrink:0 }}>
-                                {(a.name||'U').slice(0,1).toUpperCase()}
-                              </div>
-                              <span style={{ whiteSpace:'nowrap' }}>{a.name}</span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </td>
                     <td>
                       {canEdit && (
                         <button className="btn-icon" onClick={e => { e.stopPropagation(); deleteTask(t._id); }} title="Delete">🗑</button>
@@ -478,7 +407,6 @@ export default function MyTasks() {
         </div>
       )}
 
-      {/* Confirm dialog */}
       {confirm && (
         <ConfirmDialog
           message={confirm.message} confirmLabel="Delete" danger
@@ -486,14 +414,29 @@ export default function MyTasks() {
         />
       )}
 
-      {/* New task modal */}
-      {modal === 'new' && (
-        <Modal title="New Task" onClose={() => setModal(null)} wide>
-          <TaskForm onClose={() => setModal(null)} onSaved={() => { setModal(null); load(); }} />
+      {bulkAssignOpen && (
+        <Modal title={`Assign ${selected.length} tasks`} onClose={() => setBulkAssignOpen(false)}>
+          <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+            <p style={{ fontSize:13, color:'var(--muted)', margin:0 }}>
+              Select a team member to assign the selected tasks to.
+            </p>
+            <select
+              className="input-sm"
+              value={bulkAssignUser}
+              onChange={e => setBulkAssignUser(e.target.value)}
+              style={{ fontSize:14, padding:'8px 12px' }}
+            >
+              <option value="">— Select member —</option>
+              {users.map(u => <option key={u._id||u.id} value={u._id||u.id}>{u.name} ({u.role})</option>)}
+            </select>
+            <div className="form-actions">
+              <button className="btn btn-secondary" onClick={() => setBulkAssignOpen(false)}>Cancel</button>
+              <button className="btn btn-primary" disabled={!bulkAssignUser} onClick={doBulkAssign}>Assign</button>
+            </div>
+          </div>
         </Modal>
       )}
 
-      {/* Edit task modal */}
       {editingTaskId && (
         <Modal title="Modify Task" onClose={() => setEditingTaskId(null)} wide>
           <TaskForm
@@ -504,7 +447,6 @@ export default function MyTasks() {
         </Modal>
       )}
 
-      {/* Task detail drawer */}
       {modal && modal !== 'new' && (
         <div className="drawer-overlay" onClick={e => { if (e.target === e.currentTarget) setModal(null); }}>
           <div className="drawer">

@@ -8,6 +8,7 @@ export const PANEL_SECTIONS = [
   { id: 'tasks-backend',    label: 'All Tasks — Backend only' },
   { id: 'add-task',         label: 'Add Task (create new)' },
   { id: 'my-tasks',         label: 'My Tasks' },
+  { id: 'pending-tasks',    label: 'Pending Tasks (unassigned)' },
   { id: 'search',           label: 'Search' },
   { id: 'team',             label: 'Team' },
   { id: 'reports',          label: 'Reports' },

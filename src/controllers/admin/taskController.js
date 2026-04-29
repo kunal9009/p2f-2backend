@@ -439,11 +439,6 @@ exports.create = async (req, res) => {
       product, panel,
     } = req.body;
 
-    // Non-admin submissions land in admin's "Pending Approval" queue first.
-    // They become visible in All Tasks / Kanban / dashboards only after an
-    // admin reviews + saves the task.
-    const isPending = req.user.role !== 'admin';
-
     const task = await Task.create({
       title,
       description,
@@ -465,14 +460,19 @@ exports.create = async (req, res) => {
       changeRequestDate: changeRequestDate ? new Date(changeRequestDate) : undefined,
       product,
       panel,
-      pendingApproval: isPending,
+      // Non-admin submissions are no longer gated behind a Pending
+      // Approval queue — they're created immediately with no assignee
+      // and naturally land in the Pending Tasks view (where admin and
+      // dept users can pick them up). Admin assigning a developer
+      // promotes the task to All Tasks.
+      pendingApproval: false,
       createdById: req.user.id,
       createdByName: req.user.name,
       statusHistory: [{
         toStatus: status || TASK_STATUS.TODO,
         changedById: req.user.id,
         changedByName: req.user.name,
-        remark: isPending ? 'Task submitted for approval' : 'Task created',
+        remark: 'Task created',
       }],
     });
 

@@ -36,7 +36,7 @@ const SORT_COLS = {
 export default function Tasks() {
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
-  const { isAdmin } = useAuth();
+  const { isAdmin, user } = useAuth();
   // Only admin can create / edit / change status / delete tasks. All other
   // roles (warehouse + dept roles) are view-only.
   const canEdit = isAdmin;
@@ -195,6 +195,17 @@ export default function Tasks() {
     setBulkAssignOpen(false); setBulkAssignUser(''); setSelected([]); load();
   }
 
+  async function bulkAssignToMe() {
+    if (!user?.id) return;
+    await Promise.all(selected.map(id =>
+      api('/api/admin/tasks/' + id, 'PUT', {
+        assignedTo: [{ userId: user.id, name: user.name, email: user.email }],
+      })
+    ));
+    toast(`${selected.length} task${selected.length>1?'s':''} moved to My Tasks`, 'success');
+    setSelected([]); load();
+  }
+
   function toggleSelect(id) {
     setSelected(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id]);
   }
@@ -308,6 +319,7 @@ export default function Tasks() {
             </button>
           ))}
           <span style={{ color:'var(--muted)', fontSize:12 }}>|</span>
+          <button className="btn btn-secondary btn-sm" onClick={bulkAssignToMe} title="Assign selected tasks to me">→ My Tasks</button>
           <button className="btn btn-secondary btn-sm" onClick={() => setBulkAssignOpen(true)}>👤 Assign</button>
           <button className="btn btn-sm" style={{ background:'#ef4444', color:'#fff' }} onClick={bulkDelete}>🗑 Delete</button>
           <button className="btn btn-secondary btn-sm" onClick={() => setSelected([])}>✕</button>

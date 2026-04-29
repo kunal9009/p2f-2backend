@@ -424,15 +424,21 @@ export default function Tasks() {
                     <td style={{ fontSize:12, whiteSpace:'nowrap', color:'var(--muted)' }}>
                       {TASK_ASSIGNED_BY}
                     </td>
-                    <td>
-                      <div style={{ display:'flex', gap:2 }}>
-                        {(t.assignedTo||[]).slice(0,3).map(a => (
-                          <div key={a.userId} className="user-avatar" style={{ width:22,height:22,fontSize:10 }} title={a.name}>
-                            {(a.name||'U').slice(0,1).toUpperCase()}
-                          </div>
-                        ))}
-                        {(t.assignedTo||[]).length > 3 && <span style={{ fontSize:11,color:'var(--muted)' }}>+{t.assignedTo.length-3}</span>}
-                      </div>
+                    <td style={{ fontSize:12 }}>
+                      {(t.assignedTo||[]).length === 0 ? (
+                        <span style={{ color:'var(--muted)' }}>—</span>
+                      ) : (
+                        <div style={{ display:'flex', flexDirection:'column', gap:3 }}>
+                          {t.assignedTo.map(a => (
+                            <div key={a.userId} style={{ display:'flex', alignItems:'center', gap:6 }}>
+                              <div className="user-avatar" style={{ width:20,height:20,fontSize:10,flexShrink:0 }}>
+                                {(a.name||'U').slice(0,1).toUpperCase()}
+                              </div>
+                              <span style={{ whiteSpace:'nowrap' }}>{a.name}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </td>
                     <td>
                       {canEdit && (

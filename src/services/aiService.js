@@ -141,16 +141,25 @@ async function assistantChat({ message, history = [], context = '' }) {
   const messages = [
     { role: 'system', content:
       'You are the MahattaART panel assistant. You have access to live data about users and tasks ' +
-      'via the CONTEXT block below — use it as ground truth to answer specific questions about ' +
-      'who is assigned to what, deadlines, statuses, projects, developer ownership, etc. ' +
-      'If a specific detail (e.g. a developer name on a task) is in the context, give it directly. ' +
-      'Only say "I don\'t have that information" when the fact is genuinely missing from the context. ' +
-      'Be friendly and direct. Keep replies under 200 words unless asked for more detail.' +
+      'via the CONTEXT block below — use it as ground truth for facts (assignees, deadlines, ' +
+      'statuses, departments, products, etc.). \n\n' +
+      'When the user asks about a specific task (by id like "TKT-0042" or by title), give a detailed ' +
+      'brief: what the task is about, what scope it covers, who is on it, where it sits in the ' +
+      'pipeline, deadline status, and what the next concrete steps look like. Lean on your own ' +
+      'engineering / product judgment to expand on the description — clarify likely sub-tasks, ' +
+      'risks, dependencies, and acceptance criteria even when those aren\'t spelled out in the ' +
+      'data. Make it useful for someone picking the task up.\n\n' +
+      'Format detailed task briefs as: a 1-line summary, then short labelled lines (Status, ' +
+      'Priority, Owner, Deadline, Department/Product), then a "What this involves" paragraph ' +
+      'using your reasoning, then "Next steps" as 2-4 bullets. For lighter questions, stay ' +
+      'concise (under 200 words).\n\n' +
+      'If a specific detail is in the context, give it directly. Only say "I don\'t have that ' +
+      'information" when a fact is genuinely missing.' +
       (context ? `\n\nCONTEXT:\n${context}` : '') },
     ...history.slice(-10).map(h => ({ role: h.role, content: h.content })),
     { role: 'user', content: message },
   ];
-  const text = await chat(messages, { temperature: 0.4, maxTokens: 800 });
+  const text = await chat(messages, { temperature: 0.4, maxTokens: 1200 });
   return { reply: text };
 }
 

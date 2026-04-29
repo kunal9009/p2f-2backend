@@ -125,7 +125,7 @@ exports.assistantChat = async (req, res) => {
         .select('name email role')
         .limit(100),
       Task.find({ status: { $nin: ['completed', 'cancelled'] } })
-        .select('taskId title project status priority dueDate assignedTo developers tags')
+        .select('taskId title description project status priority dueDate createdAt assignedTo developers tags department product panel comments')
         .sort({ priority: 1, dueDate: 1, createdAt: -1 })
         .limit(60),
       Task.find({ status: 'completed' })
@@ -139,18 +139,31 @@ exports.assistantChat = async (req, res) => {
 
     const fmtDate = d => (d ? new Date(d).toISOString().slice(0, 10) : '—');
     const namesOf = arr => (arr || []).map(a => a.name).filter(Boolean).join(', ') || '—';
+    const trim    = (s, n = 400) => {
+      const t = (s || '').replace(/\s+/g, ' ').trim();
+      return t.length > n ? t.slice(0, n) + '…' : t;
+    };
 
     const usersBlock = users
       .map(u => `- ${u.name} (${u.role})`)
       .join('\n');
 
     const tasksBlock = openTasks
-      .map(t =>
-        `- [${t.taskId || t._id}] "${t.title}" — project: ${t.project || '—'} · ` +
-        `status: ${t.status} · priority: ${t.priority} · due: ${fmtDate(t.dueDate)} · ` +
-        `assignedTo: ${namesOf(t.assignedTo)} · developers: ${namesOf(t.developers)}` +
-        (t.tags && t.tags.length ? ` · tags: ${t.tags.join(', ')}` : '')
-      )
+      .map(t => {
+        const lastComment = (t.comments && t.comments.length)
+          ? t.comments[t.comments.length - 1]
+          : null;
+        return [
+          `- [${t.taskId || t._id}] "${t.title}"`,
+          `    project: ${t.project || '—'} · status: ${t.status} · priority: ${t.priority}`,
+          `    department: ${t.department || '—'} · product: ${t.product || '—'} · panel: ${t.panel || '—'}`,
+          `    due: ${fmtDate(t.dueDate)} · created: ${fmtDate(t.createdAt)}`,
+          `    assignedTo: ${namesOf(t.assignedTo)} · developers: ${namesOf(t.developers)}`,
+          (t.tags && t.tags.length ? `    tags: ${t.tags.join(', ')}` : null),
+          (t.description ? `    description: ${trim(t.description, 500)}` : null),
+          (lastComment ? `    last comment by ${lastComment.authorName || 'user'}: ${trim(lastComment.text, 200)}` : null),
+        ].filter(Boolean).join('\n');
+      })
       .join('\n');
 
     const completedBlock = recentCompleted

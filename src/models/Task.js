@@ -135,6 +135,12 @@ const taskSchema = new mongoose.Schema({
   statusHistory: [statusHistorySchema],
   deadlineRollovers: [deadlineRolloverSchema],
 
+  // Tasks created by non-admin users start as pendingApproval=true. They
+  // don't appear in the All Tasks list / Kanban / dashboards until an admin
+  // reviews them in My Tasks → Pending Approval and clears the flag (which
+  // happens automatically when an admin saves the task via PUT).
+  pendingApproval: { type: Boolean, default: false, index: true },
+
   emailNotificationsEnabled: { type: Boolean, default: true },
 
   completedAt: { type: Date },

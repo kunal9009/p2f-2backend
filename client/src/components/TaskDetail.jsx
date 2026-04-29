@@ -120,6 +120,13 @@ export default function TaskDetail({ taskId, onClose, onUpdated, onEdit }) {
     <div style={{ padding:32, color:'#ef4444' }}>Task not found.</div>
   );
 
+  // Assigned non-admin users can add comments on their own task. Admin
+  // can always comment.
+  const isAssignedToMe = (task.assignedTo || []).some(
+    a => String(a.userId) === String(user?.id)
+  );
+  const canComment = isAdmin || isAssignedToMe;
+
   if (editing) return (
     <div style={{ padding:'0' }}>
       <button className="btn btn-secondary btn-sm" style={{ marginBottom:16 }} onClick={() => setEditing(false)}>
@@ -372,8 +379,8 @@ export default function TaskDetail({ taskId, onClose, onUpdated, onEdit }) {
               </div>
             )}
 
-            {/* Add comment (admin only) */}
-            {isAdmin && (
+            {/* Add comment — admin or anyone assigned to this task */}
+            {canComment && (
               <form onSubmit={postComment} style={{ display:'flex', gap:8 }}>
                 <textarea
                   value={comment}

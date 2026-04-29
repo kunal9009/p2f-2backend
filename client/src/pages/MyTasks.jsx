@@ -19,6 +19,7 @@ export default function MyTasks() {
   // Only admin can change status / add tasks. Others are view-only.
   const canEdit = isAdmin;
   const [groups,  setGroups]  = useState({});
+  const [pending, setPending] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modal,   setModal]   = useState(null);
   const [editingTaskId, setEditingTaskId] = useState(null);
@@ -27,13 +28,16 @@ export default function MyTasks() {
 
   async function load() {
     setLoading(true);
-    const res = await api('/api/admin/tasks/my');
-    if (res.success) {
+    const reqs = [api('/api/admin/tasks/my')];
+    if (isAdmin) reqs.push(api('/api/admin/tasks/pending-approval'));
+    const [myRes, pendRes] = await Promise.all(reqs);
+    if (myRes && myRes.success) {
       const g = {};
       STATUS_ORDER.forEach(s => { g[s] = []; });
-      res.data.forEach(t => { (g[t.status] = g[t.status] || []).push(t); });
+      myRes.data.forEach(t => { (g[t.status] = g[t.status] || []).push(t); });
       setGroups(g);
     }
+    if (pendRes && pendRes.success) setPending(pendRes.data || []);
     setLoading(false);
   }
 
@@ -50,7 +54,10 @@ export default function MyTasks() {
       <div className="page-header">
         <div>
           <h2>My Tasks</h2>
-          <p className="text-muted">{total} assigned · {completed} completed</p>
+          <p className="text-muted">
+            {total} assigned · {completed} completed
+            {isAdmin && pending.length > 0 && ` · ${pending.length} pending approval`}
+          </p>
         </div>
         {canEdit && <button className="btn btn-primary" onClick={() => setModal('new')}>+ New Task</button>}
       </div>
@@ -68,15 +75,52 @@ export default function MyTasks() {
         </div>
       )}
 
+      {/* Pending approval (admin only) */}
+      {isAdmin && pending.length > 0 && (
+        <div style={{ marginBottom:24 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
+            <span style={{ width:10,height:10,borderRadius:'50%',background:'#f59e0b',display:'inline-block' }} />
+            <h3 style={{ margin:0, fontSize:15 }}>Pending Approval</h3>
+            <span style={{ fontSize:12,color:'var(--muted)' }}>{pending.length}</span>
+            <span style={{ fontSize:11, color:'#92400e', background:'#fef3c7', padding:'2px 8px', borderRadius:10, marginLeft:6 }}>
+              Submitted by department users — review &amp; assign to publish
+            </span>
+          </div>
+          {pending.map(t => (
+            <div key={t._id} className="card"
+              style={{ padding:'14px 16px', marginBottom:8, display:'flex', alignItems:'center', gap:12,
+                       borderLeft:'3px solid #f59e0b', background:'#fffbeb' }}
+            >
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ display:'flex', gap:8, alignItems:'center', marginBottom:4 }}>
+                  <span style={{ fontSize:11,color:'var(--muted)' }}>{t.taskId}</span>
+                  <span className="priority-badge" style={{ background:PCOLOR[t.priority]+'20', color:PCOLOR[t.priority] }}>{t.priority}</span>
+                  {t.department && (
+                    <span style={{ fontSize:11, color:'var(--muted)', textTransform:'capitalize' }}>· {t.department}</span>
+                  )}
+                </div>
+                <div style={{ fontWeight:500, cursor:'pointer' }} onClick={() => setEditingTaskId(t._id)}>{t.title}</div>
+                <div style={{ fontSize:12, color:'var(--muted)', marginTop:4 }}>
+                  Submitted by {t.createdByName || '—'} · {new Date(t.createdAt).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'2-digit'})}
+                </div>
+              </div>
+              <button className="btn btn-primary btn-sm" onClick={() => setEditingTaskId(t._id)}>
+                Review &amp; Assign
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
       {loading ? (
         <div style={{ textAlign:'center', padding:40, color:'var(--muted)' }}>Loading…</div>
-      ) : total === 0 ? (
+      ) : total === 0 && (!isAdmin || pending.length === 0) ? (
         <EmptyState
           icon="🎉"
           title="You're all caught up!"
           message="No tasks are currently assigned to you."
         />
-      ) : (
+      ) : total === 0 ? null : (
         STATUS_ORDER.map(status => {
           const ts = groups[status] || [];
           if (!ts.length) return null;

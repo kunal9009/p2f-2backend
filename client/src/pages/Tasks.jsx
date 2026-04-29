@@ -342,6 +342,7 @@ export default function Tasks() {
                 <SortTh col="priority">Priority</SortTh>
                 <SortTh col="status">Status</SortTh>
                 <SortTh col="dueDate">Deadline Date</SortTh>
+                <SortTh col="createdAt">Created Date</SortTh>
                 <th>Task Assigned By</th>
                 <th>Task Assigned To</th>
                 <th style={{ width:32 }}></th>
@@ -404,6 +405,9 @@ export default function Tasks() {
                     <td style={{ fontSize:12, whiteSpace:'nowrap', color: isOverdue ? '#ef4444' : 'var(--muted)' }}>
                       {t.dueDate ? new Date(t.dueDate).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'2-digit'}) : '—'}
                       {isOverdue && <span style={{ marginLeft:4 }}>⚠️</span>}
+                    </td>
+                    <td style={{ fontSize:12, whiteSpace:'nowrap', color:'var(--muted)' }}>
+                      {t.createdAt ? new Date(t.createdAt).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'2-digit'}) : '—'}
                     </td>
                     <td style={{ fontSize:12, whiteSpace:'nowrap', color:'var(--muted)' }}>
                       {TASK_ASSIGNED_BY}

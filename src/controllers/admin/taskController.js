@@ -10,6 +10,8 @@ function buildFilter(query) {
   if (query.project) filter.project = { $regex: query.project, $options: 'i' };
   if (query.assignedTo) filter['assignedTo.userId'] = query.assignedTo;
   if (query.tag) filter.tags = query.tag;
+  if (query.department) filter.department = query.department;
+  if (query.product) filter.product = query.product;
 
   if (query.search) {
     filter.$or = [

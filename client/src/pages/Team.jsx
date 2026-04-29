@@ -2,9 +2,78 @@ import React, { useEffect, useState } from 'react';
 import { Bar } from 'react-chartjs-2';
 import { api } from '../api';
 
+const SCOLOR = {
+  not_started:'#94a3b8', todo:'#64748b', under_discussion:'#0ea5e9',
+  in_progress:'#f59e0b', testing:'#8b5cf6', on_hold:'#94a3b8',
+  completed:'#10b981', cancelled:'#ef4444',
+};
+
+function MemberTaskList({ userId }) {
+  const [tasks, setTasks]     = useState(null);
+  const [error, setError]     = useState(null);
+
+  useEffect(() => {
+    let alive = true;
+    api(`/api/admin/tasks?assignedTo=${userId}&limit=200&sort=-createdAt`).then(res => {
+      if (!alive) return;
+      if (res.success) setTasks(res.data || []);
+      else setError(res.message || 'Failed to load tasks');
+    });
+    return () => { alive = false; };
+  }, [userId]);
+
+  if (error)        return <div style={{ fontSize:12, color:'#ef4444', padding:'8px 0' }}>{error}</div>;
+  if (tasks === null) return <div style={{ fontSize:12, color:'var(--muted)', padding:'8px 0' }}>Loading tasks…</div>;
+  if (tasks.length === 0) return <div style={{ fontSize:12, color:'var(--muted)', padding:'8px 0' }}>No tasks assigned.</div>;
+
+  return (
+    <div style={{ marginTop:12, borderTop:'1px solid var(--border)', paddingTop:12 }}>
+      <div style={{ fontSize:12, fontWeight:600, color:'var(--muted)', marginBottom:8 }}>
+        Tasks ({tasks.length})
+      </div>
+      <div style={{ display:'flex', flexDirection:'column', gap:6, maxHeight:280, overflowY:'auto' }}>
+        {tasks.map(t => {
+          const isOverdue = t.dueDate && new Date(t.dueDate) < new Date() && !['completed','cancelled'].includes(t.status);
+          return (
+            <a
+              key={t._id}
+              href={`/app/tasks?id=${t._id}`}
+              style={{
+                display:'flex', alignItems:'center', gap:8,
+                padding:'8px 10px', background:'var(--bg)', borderRadius:6,
+                textDecoration:'none', color:'inherit', fontSize:12,
+              }}
+            >
+              <span style={{ fontFamily:'monospace', color:'var(--muted)', flexShrink:0 }}>{t.taskId}</span>
+              <span style={{ flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{t.title}</span>
+              <span style={{
+                fontSize:10, fontWeight:600, padding:'2px 6px', borderRadius:4,
+                background: SCOLOR[t.status]+'22', color: SCOLOR[t.status],
+                whiteSpace:'nowrap', textTransform:'capitalize',
+              }}>
+                {t.status.replace(/_/g,' ')}
+              </span>
+              <span style={{
+                fontSize:11, color: isOverdue ? '#ef4444' : 'var(--muted)',
+                whiteSpace:'nowrap', minWidth:70, textAlign:'right',
+              }}>
+                {t.dueDate
+                  ? new Date(t.dueDate).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'2-digit'})
+                  : '—'}
+                {isOverdue && ' ⚠️'}
+              </span>
+            </a>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function Team() {
   const [data,    setData]    = useState(null);
   const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState(null);
 
   useEffect(() => {
     api('/api/admin/tasks/dashboard').then(res => {
@@ -50,13 +119,19 @@ export default function Team() {
       )}
 
       {/* Member cards */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(280px,1fr))', gap:16 }}>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(320px,1fr))', gap:16 }}>
         {assigneeBreakdown.map(member => {
-          const pct = member.total ? Math.round(member.completed / member.total * 100) : 0;
-          const active = member.total - member.completed;
+          const memberId = member._id || member.name;
+          const isOpen   = expanded === memberId;
+          const pct      = member.total ? Math.round(member.completed / member.total * 100) : 0;
+          const active   = member.total - member.completed;
           return (
-            <div key={member._id || member.name} className="card">
-              <div style={{ display:'flex', gap:12, alignItems:'center', marginBottom:14 }}>
+            <div key={memberId} className="card" style={{ alignSelf:'start' }}>
+              <div
+                onClick={() => setExpanded(isOpen ? null : memberId)}
+                style={{ display:'flex', gap:12, alignItems:'center', marginBottom:14, cursor:'pointer' }}
+                title={isOpen ? 'Click to collapse' : 'Click to view tasks'}
+              >
                 <div className="user-avatar" style={{ width:44, height:44, fontSize:18, flexShrink:0 }}>
                   {(member.name||'U').slice(0,1).toUpperCase()}
                 </div>
@@ -68,6 +143,7 @@ export default function Team() {
                   <div style={{ fontSize:22, fontWeight:700, color:'#10b981' }}>{pct}%</div>
                   <div style={{ fontSize:11, color:'var(--muted)' }}>done</div>
                 </div>
+                <div style={{ fontSize:14, color:'var(--muted)', marginLeft:4 }}>{isOpen ? '▾' : '▸'}</div>
               </div>
 
               <div className="progress-bar-wrap" style={{ marginBottom:12 }}>
@@ -86,6 +162,8 @@ export default function Team() {
                   </div>
                 ))}
               </div>
+
+              {isOpen && member._id && <MemberTaskList userId={member._id} />}
             </div>
           );
         })}

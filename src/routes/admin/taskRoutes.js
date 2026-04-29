@@ -10,6 +10,7 @@ router.use(protect, adminOrWarehouse);
 router.get('/dashboard', taskController.dashboard);     // GET  /api/admin/tasks/dashboard
 router.get('/kanban',    taskController.kanban);        // GET  /api/admin/tasks/kanban
 router.get('/my',        taskController.myTasks);       // GET  /api/admin/tasks/my
+router.get('/pending-approval', adminOnly, taskController.pendingApproval); // GET /api/admin/tasks/pending-approval
 router.get('/export',    taskController.exportCsv);     // GET  /api/admin/tasks/export
 router.get('/activity',  taskController.activity);      // GET  /api/admin/tasks/activity
 router.get('/search',           taskController.search);          // GET  /api/admin/tasks/search
@@ -47,7 +48,9 @@ router.post(
 router.delete('/:id/attachments/:attId', adminOnly, taskController.removeAttachment);
 
 // ─── COMMENTS ───
-router.post('/:id/comments',               adminOnly, taskController.addComment);    // POST   /api/admin/tasks/:id/comments
-router.delete('/:id/comments/:commentId',  adminOnly, taskController.deleteComment); // DELETE /api/admin/tasks/:id/comments/:commentId
+// Admin can always comment. Non-admins can comment only on tasks they're
+// assigned to (enforced inside the controller).
+router.post('/:id/comments',               taskController.addComment);    // POST   /api/admin/tasks/:id/comments
+router.delete('/:id/comments/:commentId',  taskController.deleteComment); // DELETE /api/admin/tasks/:id/comments/:commentId
 
 module.exports = router;

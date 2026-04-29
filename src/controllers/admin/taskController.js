@@ -49,6 +49,10 @@ exports.list = async (req, res) => {
 
     const filter = buildFilter(req.query);
 
+    // Tasks awaiting admin approval are hidden from the All Tasks list.
+    // They surface only in admin's My Tasks → Pending Approval view.
+    filter.pendingApproval = { $ne: true };
+
     // Developer / product users only see tasks an admin has assigned to
     // them — they don't get visibility into the rest of the board.
     if (req.user.role === 'developer' || req.user.role === 'product') {
@@ -89,7 +93,7 @@ exports.list = async (req, res) => {
 exports.kanban = async (req, res) => {
   try {
     const project = req.query.project;
-    const matchFilter = {};
+    const matchFilter = { pendingApproval: { $ne: true } };
     if (project) matchFilter.project = { $regex: project, $options: 'i' };
 
     // Developer / product users only see their own assigned tasks on the board.
@@ -127,7 +131,7 @@ exports.dashboard = async (req, res) => {
     const weekEnd    = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 
     // Optional date-range filter (used by Reports page)
-    const baseFilter = {};
+    const baseFilter = { pendingApproval: { $ne: true } };
     if (req.query.dueAfter)  baseFilter.dueDate = { ...baseFilter.dueDate, $gte: new Date(req.query.dueAfter) };
     if (req.query.dueBefore) baseFilter.dueDate = { ...baseFilter.dueDate, $lte: new Date(req.query.dueBefore) };
 
@@ -324,10 +328,23 @@ exports.myTasks = async (req, res) => {
   try {
     const filter = {
       'assignedTo.userId': req.user.id,
+      pendingApproval: { $ne: true },
     };
     if (req.query.status) filter.status = req.query.status;
 
     const tasks = await Task.find(filter).sort({ dueDate: 1, priority: -1 });
+    res.json({ success: true, data: tasks, total: tasks.length });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// ─── GET /api/admin/tasks/pending-approval ───
+// Admin-only. Tasks submitted by a department user that haven't been
+// reviewed yet. Surfaced in MyTasks → "Pending Approval" section.
+exports.pendingApproval = async (req, res) => {
+  try {
+    const tasks = await Task.find({ pendingApproval: true }).sort('-createdAt');
     res.json({ success: true, data: tasks, total: tasks.length });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -356,6 +373,11 @@ exports.create = async (req, res) => {
       product, panel,
     } = req.body;
 
+    // Non-admin submissions land in admin's "Pending Approval" queue first.
+    // They become visible in All Tasks / Kanban / dashboards only after an
+    // admin reviews + saves the task.
+    const isPending = req.user.role !== 'admin';
+
     const task = await Task.create({
       title,
       description,
@@ -377,13 +399,14 @@ exports.create = async (req, res) => {
       changeRequestDate: changeRequestDate ? new Date(changeRequestDate) : undefined,
       product,
       panel,
+      pendingApproval: isPending,
       createdById: req.user.id,
       createdByName: req.user.name,
       statusHistory: [{
         toStatus: status || TASK_STATUS.TODO,
         changedById: req.user.id,
         changedByName: req.user.name,
-        remark: 'Task created',
+        remark: isPending ? 'Task submitted for approval' : 'Task created',
       }],
     });
 
@@ -418,12 +441,26 @@ exports.update = async (req, res) => {
 
     // Track if assignees changed
     const prevAssignees = task.assignedTo.map(a => String(a.userId));
+    const wasPending    = !!task.pendingApproval;
 
     allowedFields.forEach(field => {
       if (req.body[field] !== undefined) {
         task[field] = req.body[field];
       }
     });
+
+    // Admin reviewing a pending submission clears the approval flag. This
+    // is what surfaces the task into the All Tasks list / Kanban / dashboard.
+    if (wasPending && req.user.role === 'admin') {
+      task.pendingApproval = false;
+      task.statusHistory.push({
+        fromStatus: task.status,
+        toStatus: task.status,
+        changedById: req.user.id,
+        changedByName: req.user.name,
+        remark: 'Task approved by admin',
+      });
+    }
 
     // Update assignees
     if (req.body.assignedTo !== undefined) {
@@ -514,6 +551,21 @@ exports.addComment = async (req, res) => {
 
     const task = await Task.findById(req.params.id);
     if (!task) return res.status(404).json({ success: false, message: 'Task not found' });
+
+    // Admin can comment on anything. Non-admins must be assigned to the
+    // task (so an assigned developer can add notes / questions but a random
+    // dept user can't comment on tasks they're not part of).
+    if (req.user.role !== 'admin') {
+      const isAssignee = (task.assignedTo || []).some(
+        a => String(a.userId) === String(req.user.id)
+      );
+      if (!isAssignee) {
+        return res.status(403).json({
+          success: false,
+          message: 'Only admin or assigned users can comment on this task',
+        });
+      }
+    }
 
     const comment = {
       text: text.trim(),
@@ -621,6 +673,7 @@ exports.activity = async (req, res) => {
 
     // Pull tasks that had activity since the cutoff
     const tasks = await Task.find({
+      pendingApproval: { $ne: true },
       $or: [
         { 'statusHistory.changedAt': { $gte: since } },
         { 'comments.createdAt': { $gte: since } },
@@ -720,6 +773,7 @@ exports.search = async (req, res) => {
 
     // Search across title, description, taskId, tags, and comment text
     const tasks = await Task.find({
+      pendingApproval: { $ne: true },
       $or: [
         { title:       { $regex: q, $options: 'i' } },
         { description: { $regex: q, $options: 'i' } },

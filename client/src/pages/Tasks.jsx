@@ -36,7 +36,7 @@ const SORT_COLS = {
 export default function Tasks() {
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
-  const { isAdmin } = useAuth();
+  const { isAdmin, user } = useAuth();
   // Only admin can create / edit / change status / delete tasks. All other
   // roles (warehouse + dept roles) are view-only.
   const canEdit = isAdmin;
@@ -195,6 +195,17 @@ export default function Tasks() {
     setBulkAssignOpen(false); setBulkAssignUser(''); setSelected([]); load();
   }
 
+  async function bulkAssignToMe() {
+    if (!user?.id) return;
+    await Promise.all(selected.map(id =>
+      api('/api/admin/tasks/' + id, 'PUT', {
+        assignedTo: [{ userId: user.id, name: user.name, email: user.email }],
+      })
+    ));
+    toast(`${selected.length} task${selected.length>1?'s':''} moved to My Tasks`, 'success');
+    setSelected([]); load();
+  }
+
   function toggleSelect(id) {
     setSelected(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id]);
   }
@@ -308,6 +319,7 @@ export default function Tasks() {
             </button>
           ))}
           <span style={{ color:'var(--muted)', fontSize:12 }}>|</span>
+          <button className="btn btn-secondary btn-sm" onClick={bulkAssignToMe} title="Assign selected tasks to me">→ My Tasks</button>
           <button className="btn btn-secondary btn-sm" onClick={() => setBulkAssignOpen(true)}>👤 Assign</button>
           <button className="btn btn-sm" style={{ background:'#ef4444', color:'#fff' }} onClick={bulkDelete}>🗑 Delete</button>
           <button className="btn btn-secondary btn-sm" onClick={() => setSelected([])}>✕</button>
@@ -342,6 +354,7 @@ export default function Tasks() {
                 <SortTh col="priority">Priority</SortTh>
                 <SortTh col="status">Status</SortTh>
                 <SortTh col="dueDate">Deadline Date</SortTh>
+                <SortTh col="createdAt">Created Date</SortTh>
                 <th>Task Assigned By</th>
                 <th>Task Assigned To</th>
                 <th style={{ width:32 }}></th>
@@ -406,17 +419,26 @@ export default function Tasks() {
                       {isOverdue && <span style={{ marginLeft:4 }}>⚠️</span>}
                     </td>
                     <td style={{ fontSize:12, whiteSpace:'nowrap', color:'var(--muted)' }}>
+                      {t.createdAt ? new Date(t.createdAt).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'2-digit'}) : '—'}
+                    </td>
+                    <td style={{ fontSize:12, whiteSpace:'nowrap', color:'var(--muted)' }}>
                       {TASK_ASSIGNED_BY}
                     </td>
-                    <td>
-                      <div style={{ display:'flex', gap:2 }}>
-                        {(t.assignedTo||[]).slice(0,3).map(a => (
-                          <div key={a.userId} className="user-avatar" style={{ width:22,height:22,fontSize:10 }} title={a.name}>
-                            {(a.name||'U').slice(0,1).toUpperCase()}
-                          </div>
-                        ))}
-                        {(t.assignedTo||[]).length > 3 && <span style={{ fontSize:11,color:'var(--muted)' }}>+{t.assignedTo.length-3}</span>}
-                      </div>
+                    <td style={{ fontSize:12 }}>
+                      {(t.assignedTo||[]).length === 0 ? (
+                        <span style={{ color:'var(--muted)' }}>—</span>
+                      ) : (
+                        <div style={{ display:'flex', flexDirection:'column', gap:3 }}>
+                          {t.assignedTo.map(a => (
+                            <div key={a.userId} style={{ display:'flex', alignItems:'center', gap:6 }}>
+                              <div className="user-avatar" style={{ width:20,height:20,fontSize:10,flexShrink:0 }}>
+                                {(a.name||'U').slice(0,1).toUpperCase()}
+                              </div>
+                              <span style={{ whiteSpace:'nowrap' }}>{a.name}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </td>
                     <td>
                       {canEdit && (

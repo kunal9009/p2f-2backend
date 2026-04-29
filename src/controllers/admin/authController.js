@@ -33,7 +33,8 @@ exports.login = async (req, res) => {
       token,
       user: {
         id: user._id,
-        name: user.name,
+        // Admin display name is hard-coded as "Kunal" everywhere.
+        name: user.role === 'admin' ? 'Kunal' : user.name,
         email: user.email,
         role: user.role,
         permissionsRestricted: !!user.permissionsRestricted,

@@ -10,6 +10,7 @@ const NAV = [
   { id: 'tasks',     label: 'All Tasks',    icon: '📋', to: '/tasks'    },
   { id: 'add-task',  label: 'Add Task',     icon: '➕', to: '/tasks/new' },
   { id: 'my-tasks',  label: 'My Tasks',     icon: '🙋', to: '/my-tasks', notif: true },
+  { id: 'pending-tasks', label: 'Pending Tasks', icon: '🕒', to: '/pending-tasks' },
   { id: 'search',    label: 'Search',       icon: '🔍', to: '/search'   },
   { id: 'team',      label: 'Team',         icon: '👥', to: '/team'     },
   { id: 'reports',   label: 'Reports',      icon: '📈', to: '/reports'  },

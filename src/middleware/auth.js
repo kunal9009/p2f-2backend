@@ -27,10 +27,12 @@ const protect = async (req, res, next) => {
       return res.status(401).json({ success: false, message: 'User not found or deactivated' });
     }
 
-    // Attach user to request (without password)
+    // Attach user to request (without password). Admin display name is
+    // hard-coded as "Kunal" so all backend writes (status changes,
+    // comments, assignments) credit the admin under that identity.
     req.user = {
       id: user._id,
-      name: user.name,
+      name: user.role === 'admin' ? 'Kunal' : user.name,
       email: user.email,
       role: user.role,
       vendorId: user.vendorId,

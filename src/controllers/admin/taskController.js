@@ -59,6 +59,14 @@ exports.list = async (req, res) => {
       filter['assignedTo.userId'] = req.user.id;
     }
 
+    // All Tasks and My Tasks are mutually exclusive for admin: a task the
+    // admin is already an assignee of belongs in My Tasks, not the team
+    // list. We skip this exclusion when the admin explicitly filters by
+    // assignee (so the assignee dropdown still works).
+    if (req.user.role === 'admin' && !filter['assignedTo.userId']) {
+      filter['assignedTo.userId'] = { $ne: req.user.id };
+    }
+
     // Per-user panel scope: a non-admin user with the tasks-frontend or
     // tasks-backend permission only sees tasks matching that panel. If both
     // are granted (or permissionsRestricted is off / they're admin), no

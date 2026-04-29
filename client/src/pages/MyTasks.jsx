@@ -163,6 +163,20 @@ export default function MyTasks() {
     setSelected([]); load();
   }
 
+  // Remove the logged-in user from assignedTo on each selected task.
+  // Useful when admin was added by mistake — once admin is gone the
+  // task drops out of My Tasks and re-appears in All Tasks.
+  async function bulkRemoveMe() {
+    if (!user?.id) return;
+    const selectedTasks = tasks.filter(t => selected.includes(t._id));
+    await Promise.all(selectedTasks.map(t => {
+      const next = (t.assignedTo || []).filter(a => String(a.userId) !== String(user.id));
+      return api('/api/admin/tasks/' + t._id, 'PUT', { assignedTo: next });
+    }));
+    toast(`${selectedTasks.length} task${selectedTasks.length>1?'s':''} moved to All Tasks`, 'success');
+    setSelected([]); load();
+  }
+
   function toggleSelect(id) {
     setSelected(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id]);
   }
@@ -309,6 +323,7 @@ export default function MyTasks() {
             </button>
           ))}
           <span style={{ color:'var(--muted)', fontSize:12 }}>|</span>
+          <button className="btn btn-secondary btn-sm" onClick={bulkRemoveMe} title="Unassign me — moves task back to All Tasks">→ All Tasks</button>
           <button className="btn btn-sm" style={{ background:'#ef4444', color:'#fff' }} onClick={bulkDelete}>🗑 Delete</button>
           <button className="btn btn-secondary btn-sm" onClick={() => setSelected([])}>✕</button>
         </div>

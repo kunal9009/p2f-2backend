@@ -11,6 +11,8 @@ import EmptyState from '../components/EmptyState';
 
 const STATUSES   = ['not_started','todo','under_discussion','in_progress','testing','on_hold','completed','cancelled'];
 const PRIORITIES = ['critical','high','medium','low'];
+const DEPARTMENTS = ['marketing','content','sales','product','it'];
+const PRODUCTS    = ['wallpaper','wallart','p2f','entire-website'];
 const PCOLOR = { critical:'#ef4444', high:'#f97316', medium:'#3b82f6', low:'#10b981' };
 const SCOLOR = {
   not_started:'#94a3b8', todo:'#64748b', under_discussion:'#0ea5e9',
@@ -58,6 +60,8 @@ export default function Tasks() {
     search:     searchParams.get('search')     || '',
     status:     searchParams.get('status')     || '',
     priority:   searchParams.get('priority')   || '',
+    department: searchParams.get('department') || '',
+    product:    searchParams.get('product')    || '',
     project:    searchParams.get('project')    || '',
     tag:        searchParams.get('tag')        || '',
     assignedTo: searchParams.get('assignedTo') || '',
@@ -72,6 +76,8 @@ export default function Tasks() {
     if (f.search)     q.set('search',     f.search);
     if (f.status)     q.set('status',     f.status);
     if (f.priority)   q.set('priority',   f.priority);
+    if (f.department) q.set('department', f.department);
+    if (f.product)    q.set('product',    f.product);
     if (f.project)    q.set('project',    f.project);
     if (f.tag)        q.set('tag',        f.tag);
     if (f.assignedTo) q.set('assignedTo', f.assignedTo);
@@ -112,7 +118,7 @@ export default function Tasks() {
 
   function setFilter(field, value) { setFilters(f => ({ ...f, [field]: value })); setPage(1); }
   function clearFilters() {
-    setFilters({ search:'', status:'', priority:'', project:'', tag:'', assignedTo:'', overdue:false, dueToday:false, dueAfter:'', dueBefore:'' });
+    setFilters({ search:'', status:'', priority:'', department:'', product:'', project:'', tag:'', assignedTo:'', overdue:false, dueToday:false, dueAfter:'', dueBefore:'' });
     setPage(1);
   }
 
@@ -247,6 +253,14 @@ export default function Tasks() {
         <select className="input-sm" value={filters.priority} onChange={e => setFilter('priority', e.target.value)}>
           <option value="">All priorities</option>
           {PRIORITIES.map(p => <option key={p} value={p}>{p}</option>)}
+        </select>
+        <select className="input-sm" value={filters.department} onChange={e => setFilter('department', e.target.value)} style={{ textTransform:'capitalize' }}>
+          <option value="">All departments</option>
+          {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+        </select>
+        <select className="input-sm" value={filters.product} onChange={e => setFilter('product', e.target.value)}>
+          <option value="">All products</option>
+          {PRODUCTS.map(p => <option key={p} value={p}>{PRODUCT_LABELS[p] || p}</option>)}
         </select>
         <input className="input-sm" placeholder="Project…" value={filters.project}
           onChange={e => setFilter('project', e.target.value)} style={{ width:100 }}

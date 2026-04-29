@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { api } from '../api';
+import { api, getToken } from '../api';
 import { useToast } from '../contexts/ToastContext';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -29,6 +29,7 @@ export default function TaskForm({ taskId, defaultStatus, defaultDueDate, onClos
   const [users,    setUsers]    = useState([]);
   const [projects, setProjects] = useState([]);
   const [allTags,  setAllTags]  = useState([]);
+  const [newFiles, setNewFiles] = useState([]); // pending uploads
   const [loading,  setLoading]  = useState(true);
   const [saving,  setSaving]  = useState(false);
   const [error,   setError]   = useState('');
@@ -191,6 +192,29 @@ export default function TaskForm({ taskId, defaultStatus, defaultDueDate, onClos
       taskId ? 'PUT' : 'POST',
       payload,
     );
+
+    // Upload any newly-picked attachments to the task we just saved
+    if (res.success && newFiles.length) {
+      const id = res.data?._id || taskId;
+      if (id) {
+        const fd = new FormData();
+        newFiles.forEach(f => fd.append('files', f));
+        try {
+          const up = await fetch('/api/admin/tasks/' + id + '/attachments', {
+            method: 'POST',
+            headers: { Authorization: 'Bearer ' + (getToken && getToken()) },
+            body: fd,
+          });
+          const ujson = await up.json();
+          if (!ujson.success) {
+            toast(ujson.message || 'Attachment upload failed', 'error');
+          }
+        } catch (err) {
+          toast(err.message || 'Attachment upload failed', 'error');
+        }
+      }
+      setNewFiles([]);
+    }
     setSaving(false);
     if (res.success) { toast(taskId ? 'Task updated' : 'Task created', 'success'); onSaved && onSaved(res.data); }
     else             { setError(res.message || 'Save failed'); toast(res.message || 'Save failed', 'error'); }
@@ -471,6 +495,27 @@ export default function TaskForm({ taskId, defaultStatus, defaultDueDate, onClos
           </span>
         </label>
       )}
+
+      {/* Attachments — pick files / images to upload after save */}
+      <div className="form-group">
+        <label>Attachments (images / PDF, up to 5, 10 MB each)</label>
+        <input
+          type="file"
+          multiple
+          accept="image/*,application/pdf"
+          onChange={e => {
+            const picked = Array.from(e.target.files || []).slice(0, 5);
+            setNewFiles(picked);
+          }}
+        />
+        {newFiles.length > 0 && (
+          <ul style={{ margin:'6px 0 0', padding:0, listStyle:'none', fontSize:12, color:'var(--muted)' }}>
+            {newFiles.map((f, i) => (
+              <li key={i}>📎 {f.name} ({Math.round(f.size / 1024)} KB)</li>
+            ))}
+          </ul>
+        )}
+      </div>
 
       <div className="form-actions">
         <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>

@@ -174,9 +174,10 @@ export default function TaskDetail({ taskId, onClose, onUpdated, onEdit }) {
           </div>
         </div>
 
-        {/* Status + Priority row */}
+        {/* Status + Priority row. Admin can always change status; assignees
+            can change status of tasks they're on. */}
         <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'center' }}>
-          {isAdmin ? (
+          {(isAdmin || isAssignedToMe) ? (
             <select
               value={task.status}
               style={{ padding:'4px 10px', borderRadius:6, border:'1px solid var(--border)', fontWeight:600, fontSize:13, color:SCOLOR[task.status], cursor:'pointer' }}

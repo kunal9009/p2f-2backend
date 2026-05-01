@@ -30,7 +30,9 @@ router.put('/:id', adminOnly, taskController.update);                    // PUT 
 router.delete('/:id', adminOnly, taskController.remove);                 // DELETE /api/admin/tasks/:id
 
 // ─── STATUS MANAGEMENT ───
-router.patch('/:id/status', adminOnly, taskController.updateStatus); // PATCH /api/admin/tasks/:id/status
+// Admin can always update; non-admin must be an assignee on the task
+// (enforced inside the controller).
+router.patch('/:id/status', taskController.updateStatus); // PATCH /api/admin/tasks/:id/status
 
 // ─── DEADLINE ROLLOVER REASON ───
 router.patch('/:id/rollover-reason', adminOnly, taskController.setRolloverReason); // PATCH /api/admin/tasks/:id/rollover-reason

@@ -407,19 +407,17 @@ export default function MyTasks() {
                       )}
                     </td>
                     <td>
-                      {canEdit ? (
-                        <select
-                          className="status-select"
-                          value={t.status}
-                          style={{ color:SCOLOR[t.status], fontWeight:600, fontSize:12 }}
-                          onChange={e => { e.stopPropagation(); changeStatus(t._id, e.target.value); }}
-                          onClick={e => e.stopPropagation()}
-                        >
-                          {STATUSES.map(s => <option key={s} value={s}>{s.replace('_',' ')}</option>)}
-                        </select>
-                      ) : (
-                        <span style={{ color:SCOLOR[t.status], fontWeight:600, fontSize:12 }}>{t.status.replace('_',' ')}</span>
-                      )}
+                      {/* Every row here is either admin or a task I'm an
+                          assignee on — both are allowed to change status. */}
+                      <select
+                        className="status-select"
+                        value={t.status}
+                        style={{ color:SCOLOR[t.status], fontWeight:600, fontSize:12 }}
+                        onChange={e => { e.stopPropagation(); changeStatus(t._id, e.target.value); }}
+                        onClick={e => e.stopPropagation()}
+                      >
+                        {STATUSES.map(s => <option key={s} value={s}>{s.replace('_',' ')}</option>)}
+                      </select>
                     </td>
                     <td style={{ fontSize:12, whiteSpace:'nowrap', color: isOverdue ? '#ef4444' : 'var(--muted)' }}>
                       {t.dueDate ? new Date(t.dueDate).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'2-digit'}) : '—'}

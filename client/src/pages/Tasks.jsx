@@ -363,6 +363,8 @@ export default function Tasks() {
             <tbody>
               {tasks.map(t => {
                 const isOverdue = t.dueDate && new Date(t.dueDate) < new Date() && !['completed','cancelled'].includes(t.status);
+                const isMine    = (t.assignedTo || []).some(a => String(a.userId) === String(user?.id));
+                const canChangeStatus = canEdit || isMine;
                 return (
                   <tr key={t._id} className={selected.includes(t._id) ? 'row-selected' : ''}>
                     {canEdit && (
@@ -400,7 +402,7 @@ export default function Tasks() {
                       )}
                     </td>
                     <td>
-                      {canEdit ? (
+                      {canChangeStatus ? (
                         <select
                           className="status-select"
                           value={t.status}

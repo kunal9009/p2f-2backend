@@ -381,10 +381,8 @@ export default function Tasks() {
                         </div>
                       )}
                     </td>
-                    <td style={{ fontSize:12, color:'var(--muted)', maxWidth:260 }} title={t.description || ''}>
-                      <div style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                        {t.description || '—'}
-                      </div>
+                    <td style={{ fontSize:12, color:'var(--muted)', maxWidth:300, whiteSpace:'normal', wordBreak:'break-word', lineHeight:1.4 }}>
+                      {t.description || '—'}
                     </td>
                     <td style={{ color:'var(--muted)', fontSize:13, whiteSpace:'nowrap' }}>{t.project || '—'}</td>
                     <td style={{ fontSize:12, whiteSpace:'nowrap', color:'var(--muted)', textTransform:'capitalize' }}>

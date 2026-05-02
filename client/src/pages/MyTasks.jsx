@@ -355,8 +355,10 @@ export default function MyTasks() {
                 )}
                 <SortTh col="taskId">ID</SortTh>
                 <SortTh col="title">Title</SortTh>
+                <th>Description</th>
                 <th>Project</th>
                 <th>Department</th>
+                <th>Owner</th>
                 <th>Product</th>
                 <SortTh col="priority">Priority</SortTh>
                 <SortTh col="status">Status</SortTh>
@@ -384,9 +386,17 @@ export default function MyTasks() {
                         </div>
                       )}
                     </td>
+                    <td style={{ fontSize:12, color:'var(--muted)', maxWidth:260 }} title={t.description || ''}>
+                      <div style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                        {t.description || '—'}
+                      </div>
+                    </td>
                     <td style={{ color:'var(--muted)', fontSize:13, whiteSpace:'nowrap' }}>{t.project || '—'}</td>
                     <td style={{ fontSize:12, whiteSpace:'nowrap', color:'var(--muted)', textTransform:'capitalize' }}>
                       {t.department || '—'}
+                    </td>
+                    <td style={{ fontSize:12, whiteSpace:'nowrap', color:'var(--muted)' }}>
+                      {t.ownerName || '—'}
                     </td>
                     <td style={{ fontSize:12, whiteSpace:'nowrap', color:'var(--muted)' }}>
                       {t.product ? (PRODUCT_LABELS[t.product] || t.product) : '—'}

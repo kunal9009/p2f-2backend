@@ -578,6 +578,19 @@ exports.updateStatus = async (req, res) => {
     const task = await Task.findById(req.params.id);
     if (!task) return res.status(404).json({ success: false, message: 'Task not found' });
 
+    // Admin can update any task; non-admin must be one of the assignees.
+    if (req.user.role !== 'admin') {
+      const isAssignee = (task.assignedTo || []).some(
+        a => String(a.userId) === String(req.user.id)
+      );
+      if (!isAssignee) {
+        return res.status(403).json({
+          success: false,
+          message: 'Only admin or assigned users can change this task\'s status',
+        });
+      }
+    }
+
     const prevStatus = task.status;
     task.status = status;
     task.statusHistory.push({

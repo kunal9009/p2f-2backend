@@ -1,6 +1,25 @@
 const Task = require('../../models/Task');
 const { TASK_STATUS, TASK_PRIORITY } = require('../../models/Task');
+const User = require('../../models/User');
 const emailService = require('../../utils/emailService');
+
+// Tasks that have only admin user(s) in assignedTo — or no assignees at
+// all — count as "unassigned" for the Pending Tasks view, since the
+// admin hasn't actually handed them off to a developer yet.
+async function buildUnassignedClause() {
+  const admins = await User.find({ role: 'admin' }).select('_id').lean();
+  const adminIds = admins.map(a => a._id);
+  return {
+    $or: [
+      { assignedTo: { $size: 0 } },
+      { assignedTo: { $exists: false } },
+      // Every entry in assignedTo has userId in adminIds → no developer
+      // is on the task yet. $not + $elemMatch for "no element where
+      // userId is NOT in admin set".
+      { assignedTo: { $not: { $elemMatch: { userId: { $nin: adminIds } } } } },
+    ],
+  };
+}
 
 // ─── HELPER: build task filter from query params ───
 function buildFilter(query) {
@@ -25,15 +44,10 @@ function buildFilter(query) {
   if (query.dueBefore) filter.dueDate = { ...filter.dueDate, $lte: new Date(query.dueBefore) };
   if (query.dueAfter)  filter.dueDate = { ...filter.dueDate, $gte: new Date(query.dueAfter) };
 
-  // Show only unassigned tasks (no entries in assignedTo).
-  if (query.unassigned === 'true') {
-    filter.$and = (filter.$and || []).concat([{
-      $or: [
-        { assignedTo: { $size: 0 } },
-        { assignedTo: { $exists: false } },
-      ],
-    }]);
-  }
+  // Show only unassigned tasks (no entries in assignedTo). The actual
+  // clause — which also treats admin-only assignment as unassigned — is
+  // applied in the list/exportCsv controllers via buildUnassignedClause()
+  // because it needs an async DB lookup for admin user ids.
 
   if (query.overdue === 'true') {
     filter.dueDate = { $lt: new Date() };
@@ -63,15 +77,22 @@ exports.list = async (req, res) => {
     // They surface only in admin's My Tasks → Pending Approval view.
     filter.pendingApproval = { $ne: true };
 
+    // Apply the unassigned filter (Pending Tasks view). A task counts
+    // as unassigned when assignedTo is empty OR every entry in it is an
+    // admin user — admin holding a task isn't a real assignment yet.
+    if (req.query.unassigned === 'true') {
+      filter.$and = (filter.$and || []).concat([await buildUnassignedClause()]);
+    }
+
     // "assignedToOrUnassigned=<userId>" — used by admin's My Tasks to
     // include both tasks Kunal is on AND unassigned tasks (so he can see
     // what still needs to be assigned).
     if (req.query.assignedToOrUnassigned) {
+      const unassignedClause = await buildUnassignedClause();
       filter.$and = (filter.$and || []).concat([{
         $or: [
           { 'assignedTo.userId': req.query.assignedToOrUnassigned },
-          { assignedTo: { $size: 0 } },
-          { assignedTo: { $exists: false } },
+          ...unassignedClause.$or,
         ],
       }]);
     }
@@ -418,11 +439,6 @@ exports.create = async (req, res) => {
       product, panel,
     } = req.body;
 
-    // Non-admin submissions land in admin's "Pending Approval" queue first.
-    // They become visible in All Tasks / Kanban / dashboards only after an
-    // admin reviews + saves the task.
-    const isPending = req.user.role !== 'admin';
-
     const task = await Task.create({
       title,
       description,
@@ -444,14 +460,19 @@ exports.create = async (req, res) => {
       changeRequestDate: changeRequestDate ? new Date(changeRequestDate) : undefined,
       product,
       panel,
-      pendingApproval: isPending,
+      // Non-admin submissions are no longer gated behind a Pending
+      // Approval queue — they're created immediately with no assignee
+      // and naturally land in the Pending Tasks view (where admin and
+      // dept users can pick them up). Admin assigning a developer
+      // promotes the task to All Tasks.
+      pendingApproval: false,
       createdById: req.user.id,
       createdByName: req.user.name,
       statusHistory: [{
         toStatus: status || TASK_STATUS.TODO,
         changedById: req.user.id,
         changedByName: req.user.name,
-        remark: isPending ? 'Task submitted for approval' : 'Task created',
+        remark: 'Task created',
       }],
     });
 
@@ -556,6 +577,19 @@ exports.updateStatus = async (req, res) => {
 
     const task = await Task.findById(req.params.id);
     if (!task) return res.status(404).json({ success: false, message: 'Task not found' });
+
+    // Admin can update any task; non-admin must be one of the assignees.
+    if (req.user.role !== 'admin') {
+      const isAssignee = (task.assignedTo || []).some(
+        a => String(a.userId) === String(req.user.id)
+      );
+      if (!isAssignee) {
+        return res.status(403).json({
+          success: false,
+          message: 'Only admin or assigned users can change this task\'s status',
+        });
+      }
+    }
 
     const prevStatus = task.status;
     task.status = status;
@@ -676,6 +710,9 @@ exports.remove = async (req, res) => {
 exports.exportCsv = async (req, res) => {
   try {
     const filter = buildFilter(req.query);
+    if (req.query.unassigned === 'true') {
+      filter.$and = (filter.$and || []).concat([await buildUnassignedClause()]);
+    }
     const tasks  = await Task.find(filter).sort('-createdAt').limit(5000);
 
     const headers = [

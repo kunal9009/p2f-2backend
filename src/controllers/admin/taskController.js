@@ -21,6 +21,22 @@ async function buildUnassignedClause() {
   };
 }
 
+// Apply role-based visibility scoping to a task filter:
+// - admin / warehouse: unrestricted (full visibility).
+// - developer: only tasks assigned to them (a "doer" role).
+// - marketing / content / sales / product / it (department roles):
+//   only tasks tagged with their department.
+const DEPT_ROLES = ['marketing', 'content', 'sales', 'product', 'it'];
+function applyRoleScope(filter, user) {
+  if (user.role === 'developer') {
+    filter['assignedTo.userId'] = user.id;
+    return;
+  }
+  if (DEPT_ROLES.includes(user.role)) {
+    filter.department = user.role;
+  }
+}
+
 // ─── HELPER: build task filter from query params ───
 function buildFilter(query) {
   const filter = {};
@@ -97,20 +113,11 @@ exports.list = async (req, res) => {
       }]);
     }
 
-    // Developer / product users only see tasks an admin has assigned to
-    // them — they don't get visibility into the rest of the board.
-    if (req.user.role === 'developer' || req.user.role === 'product') {
-      filter['assignedTo.userId'] = req.user.id;
-    }
-
-    // Non-admin "department" users (marketing/content/sales) browsing the
-    // unassigned (Pending Tasks) view are scoped to their own department.
-    if (req.query.unassigned === 'true' && req.user.role !== 'admin') {
-      const deptRoles = ['marketing', 'content', 'sales', 'product', 'it'];
-      if (deptRoles.includes(req.user.role)) {
-        filter.department = req.user.role;
-      }
-    }
+    // Role-based visibility:
+    //  developer → tasks assigned to them.
+    //  dept roles (marketing/content/sales/product/it) → only their dept.
+    //  admin / warehouse → unrestricted.
+    applyRoleScope(filter, req.user);
 
     // All Tasks and My Tasks are mutually exclusive for admin: a task the
     // admin is already an assignee of belongs in My Tasks, not the team
@@ -162,10 +169,9 @@ exports.kanban = async (req, res) => {
     const matchFilter = { pendingApproval: { $ne: true } };
     if (project) matchFilter.project = { $regex: project, $options: 'i' };
 
-    // Developer / product users only see their own assigned tasks on the board.
-    if (req.user.role === 'developer' || req.user.role === 'product') {
-      matchFilter['assignedTo.userId'] = req.user.id;
-    }
+    // Role-based visibility (developer → assigned only; dept roles →
+    // own department).
+    applyRoleScope(matchFilter, req.user);
 
     const allTasks = await Task.find(matchFilter).sort({ priority: -1, dueDate: 1 });
 
@@ -201,11 +207,9 @@ exports.dashboard = async (req, res) => {
     if (req.query.dueAfter)  baseFilter.dueDate = { ...baseFilter.dueDate, $gte: new Date(req.query.dueAfter) };
     if (req.query.dueBefore) baseFilter.dueDate = { ...baseFilter.dueDate, $lte: new Date(req.query.dueBefore) };
 
-    // Developer / product users: scope every aggregate + count to their
-    // assigned tasks only — they see their own dashboard, not the global one.
-    if (req.user.role === 'developer' || req.user.role === 'product') {
-      baseFilter['assignedTo.userId'] = req.user.id;
-    }
+    // Role-based dashboard scope (developer → assigned only; dept roles →
+    // own department; admin/warehouse → global).
+    applyRoleScope(baseFilter, req.user);
 
     const matchStage = Object.keys(baseFilter).length ? [{ $match: baseFilter }] : [];
 
@@ -422,6 +426,20 @@ exports.getById = async (req, res) => {
   try {
     const task = await Task.findById(req.params.id);
     if (!task) return res.status(404).json({ success: false, message: 'Task not found' });
+
+    // Role-scope: hide tasks the user shouldn't see (e.g. a marketing
+    // user trying to open a content-dept task by id). Admin/warehouse
+    // see everything; developer must be an assignee; dept roles must
+    // match the task's department.
+    if (req.user.role === 'developer') {
+      const isAssignee = (task.assignedTo || []).some(
+        a => String(a.userId) === String(req.user.id)
+      );
+      if (!isAssignee) return res.status(404).json({ success: false, message: 'Task not found' });
+    } else if (DEPT_ROLES.includes(req.user.role) && task.department !== req.user.role) {
+      return res.status(404).json({ success: false, message: 'Task not found' });
+    }
+
     res.json({ success: true, data: task });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -713,6 +731,7 @@ exports.exportCsv = async (req, res) => {
     if (req.query.unassigned === 'true') {
       filter.$and = (filter.$and || []).concat([await buildUnassignedClause()]);
     }
+    applyRoleScope(filter, req.user);
     const tasks  = await Task.find(filter).sort('-createdAt').limit(5000);
 
     const headers = [
@@ -753,14 +772,17 @@ exports.activity = async (req, res) => {
     const limit = Math.min(parseInt(req.query.limit, 10) || 30, 100);
     const since = req.query.since ? new Date(req.query.since) : new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
-    // Pull tasks that had activity since the cutoff
-    const tasks = await Task.find({
+    // Pull tasks that had activity since the cutoff (role-scoped).
+    const activityFilter = {
       pendingApproval: { $ne: true },
       $or: [
         { 'statusHistory.changedAt': { $gte: since } },
         { 'comments.createdAt': { $gte: since } },
       ],
-    }).select('taskId title project status assignedTo statusHistory comments');
+    };
+    applyRoleScope(activityFilter, req.user);
+    const tasks = await Task.find(activityFilter)
+      .select('taskId title project status assignedTo statusHistory comments');
 
     // Flatten into a single event list
     const events = [];
@@ -854,7 +876,7 @@ exports.search = async (req, res) => {
     const limit = Math.min(parseInt(req.query.limit, 10) || 20, 50);
 
     // Search across title, description, taskId, tags, and comment text
-    const tasks = await Task.find({
+    const searchFilter = {
       pendingApproval: { $ne: true },
       $or: [
         { title:       { $regex: q, $options: 'i' } },
@@ -864,7 +886,9 @@ exports.search = async (req, res) => {
         { project:     { $regex: q, $options: 'i' } },
         { 'comments.text': { $regex: q, $options: 'i' } },
       ],
-    })
+    };
+    applyRoleScope(searchFilter, req.user);
+    const tasks = await Task.find(searchFilter)
       .sort('-updatedAt')
       .limit(limit)
       .select('taskId title status priority project assignedTo dueDate tags updatedAt comments');
